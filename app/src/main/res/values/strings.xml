@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">HRIS</string>
+    <string name="login">Login</string>
+    <string name="email_hint">Email / NIK</string>
+    <string name="password_hint">Password</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="employees">Data Karyawan</string>
+    <string name="attendance">Absensi</string>
+    <string name="leave">Cuti &amp; Izin</string>
+    <string name="payroll">Payroll</string>
+    <string name="kpi">KPI</string>
+    <string name="report">Laporan</string>
+    <string name="notification">Notifikasi</string>
+    <string name="audit_log">Audit Log</string>
+    <string name="profile">Profil</string>
+    <string name="automation">Automation</string>
+    <string name="role_management">Role Management</string>
+</resources>

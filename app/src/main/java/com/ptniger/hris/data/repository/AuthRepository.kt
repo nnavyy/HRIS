@@ -1,0 +1,58 @@
+package com.ptniger.hris.data.repository
+
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
+import com.ptniger.hris.data.model.User
+import com.ptniger.hris.utils.Constants
+import kotlinx.coroutines.tasks.await
+
+class AuthRepository {
+    private val auth = FirebaseAuth.getInstance()
+    private val db = FirebaseFirestore.getInstance()
+
+    val currentUser: FirebaseUser? get() = auth.currentUser
+
+    suspend fun login(email: String, password: String): Result<User> {
+        return try {
+            val result = auth.signInWithEmailAndPassword(email, password).await()
+            val uid = result.user?.uid ?: throw Exception("Login gagal")
+            val doc = db.collection(Constants.Collections.USERS).document(uid).get().await()
+            if (doc.exists()) {
+                val user = doc.toObject(User::class.java)?.copy(userId = uid)
+                    ?: throw Exception("Data user tidak ditemukan")
+                Result.success(user)
+            } else {
+                throw Exception("User belum terdaftar di sistem")
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getCurrentUserData(): Result<User> {
+        return try {
+            val uid = auth.currentUser?.uid ?: throw Exception("Belum login")
+            val doc = db.collection(Constants.Collections.USERS).document(uid).get().await()
+            val user = doc.toObject(User::class.java)?.copy(userId = uid)
+                ?: throw Exception("Data user tidak ditemukan")
+            Result.success(user)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createUserAccount(email: String, password: String, user: User): Result<String> {
+        return try {
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val uid = result.user?.uid ?: throw Exception("Gagal buat akun")
+            val userData = user.copy(userId = uid)
+            db.collection(Constants.Collections.USERS).document(uid).set(userData).await()
+            Result.success(uid)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun logout() { auth.signOut() }
+}

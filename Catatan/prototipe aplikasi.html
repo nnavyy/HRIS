@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HRIS Mobile App - Business Model Aligned</title>
+  <style>
+    :root{
+      --bg:#edf2f7;
+      --phone:#f8fafc;
+      --card:#ffffff;
+      --line:#e5e7eb;
+      --text:#172033;
+      --muted:#667085;
+      --muted2:#98a2b3;
+      --blue:#2563eb;
+      --blueSoft:#dbeafe;
+      --green:#059669;
+      --greenSoft:#d1fae5;
+      --orange:#d97706;
+      --orangeSoft:#fef3c7;
+      --red:#dc2626;
+      --redSoft:#fee2e2;
+      --purple:#7c3aed;
+      --purpleSoft:#ede9fe;
+      --pink:#db2777;
+      --pinkSoft:#fce7f3;
+      --teal:#0f766e;
+      --tealSoft:#ccfbf1;
+      --shadow:0 18px 50px rgba(15,23,42,.16);
+      --radius:24px;
+      --font:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      min-height:100vh;
+      font-family:var(--font);
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(37,99,235,.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(5,150,105,.10), transparent 28%),
+        var(--bg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .phone{
+      width:390px;
+      height:844px;
+      background:var(--phone);
+      border:10px solid #101827;
+      border-radius:42px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      position:relative;
+    }
+    .phone:before{
+      content:"";
+      position:absolute;
+      z-index:50;
+      top:8px;
+      left:50%;
+      transform:translateX(-50%);
+      width:120px;
+      height:28px;
+      background:#101827;
+      border-radius:0 0 18px 18px;
+    }
+    .app{height:100%;display:flex;flex-direction:column;background:var(--phone)}
+    .statusbar{height:38px;padding:10px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;font-size:12px;font-weight:800;flex:0 0 auto}
+    .view{display:none;height:100%}
+    .view.active{display:flex;flex-direction:column}
+    .content{flex:1;overflow-y:auto;padding:0 18px 106px;-webkit-overflow-scrolling:touch}
+    .content::-webkit-scrollbar{width:0}
+    .section{margin-top:16px}
+    .section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+    .section-title{font-size:16px;font-weight:850;letter-spacing:-.02em}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:0 8px 20px rgba(15,23,42,.04)}
+    .btn{appearance:none;border:0;cursor:pointer;font:inherit}
+    .btn-primary{background:var(--blue);color:#fff;border-radius:16px;padding:12px 14px;font-size:13px;font-weight:850;box-shadow:0 12px 24px rgba(37,99,235,.22)}
+    .btn-secondary{background:#fff;color:var(--text);border:1px solid var(--line);border-radius:16px;padding:12px 14px;font-size:13px;font-weight:850}
+    .chip{background:#fff;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:850;white-space:nowrap}
+    .chip.active{color:var(--blue);border-color:#bfdbfe;background:var(--blueSoft)}
+    .label{font-size:12px;font-weight:750;color:var(--muted);margin-bottom:8px;display:block}
+    .input{width:100%;border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px 14px;font-size:13px;outline:0;color:var(--text)}
+    .helper{font-size:11px;line-height:1.5;color:var(--muted);margin-top:6px}
+    .pill{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:850;white-space:nowrap;flex:0 0 auto}
+    .p-blue{background:var(--blueSoft);color:var(--blue)}
+    .p-green{background:var(--greenSoft);color:var(--green)}
+    .p-orange{background:var(--orangeSoft);color:var(--orange)}
+    .p-red{background:var(--redSoft);color:var(--red)}
+    .p-purple{background:var(--purpleSoft);color:var(--purple)}
+    .p-pink{background:var(--pinkSoft);color:var(--pink)}
+    .p-teal{background:var(--tealSoft);color:var(--teal)}
+
+    .login-wrap{padding:0 18px 28px;overflow-y:auto;flex:1}
+    .login-wrap::-webkit-scrollbar{width:0}
+    .login-hero{margin-top:6px;background:linear-gradient(135deg,#1d4ed8,#2563eb 55%,#60a5fa);color:#fff;border-radius:32px;padding:18px;position:relative;overflow:hidden;box-shadow:0 16px 40px rgba(37,99,235,.22)}
+    .login-hero:after{content:"";position:absolute;right:-38px;top:-42px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.14)}
+    .login-hero .kicker{font-size:12px;font-weight:750;opacity:.85;margin-bottom:6px}
+    .login-hero h1{font-size:24px;line-height:1.15;letter-spacing:-.03em;margin-bottom:8px;position:relative;z-index:1}
+    .login-hero p{font-size:12.5px;line-height:1.55;max-width:260px;opacity:.88;position:relative;z-index:1}
+    .role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0 14px}
+    .role-btn{border:1px solid var(--line);background:#fff;border-radius:18px;padding:12px;text-align:left;cursor:pointer}
+    .role-btn.active{border-color:#bfdbfe;background:#eff6ff}
+    .role-btn strong{display:block;font-size:13px;margin-bottom:3px}
+    .role-btn span{font-size:10.5px;color:var(--muted);line-height:1.35;display:block}
+    .login-actions{display:grid;gap:10px;margin-top:14px}
+
+    .topbar{padding:12px 18px 8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto}
+    .eyebrow{font-size:12px;color:var(--muted);margin-bottom:3px}
+    .title{font-size:22px;font-weight:850;letter-spacing:-.03em;line-height:1.14}
+    .top-right{display:flex;align-items:center;gap:8px}
+    .icon-btn{width:38px;height:38px;border-radius:14px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;position:relative}
+    .notif-dot{position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid #fff}
+    .avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#60a5fa);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:850;box-shadow:0 8px 18px rgba(37,99,235,.25)}
+    .subnav{padding:0 18px 10px;display:flex;gap:8px;overflow-x:auto;flex:0 0 auto}
+    .subnav::-webkit-scrollbar{height:0}
+
+    .hero{background:linear-gradient(135deg,#eff6ff,#ffffff);border:1px solid #dbeafe;border-radius:28px;padding:16px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;box-shadow:0 12px 28px rgba(15,23,42,.04)}
+    .hero h2{font-size:18px;font-weight:850;line-height:1.18;letter-spacing:-.02em;margin-bottom:7px}
+    .hero p{font-size:12px;color:var(--muted);line-height:1.5;max-width:225px}
+    .hero .big{font-size:12px;color:var(--blue);font-weight:850;background:var(--blueSoft);padding:7px 10px;border-radius:999px;white-space:nowrap}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .metric{background:#fff;border:1px solid var(--line);border-radius:22px;padding:14px;box-shadow:0 8px 20px rgba(15,23,42,.04)}
+    .metric-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .metric-icon{width:34px;height:34px;border-radius:13px;background:var(--blueSoft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px}
+    .metric-label{font-size:11px;color:var(--muted);line-height:1.35}
+    .metric-value{font-size:23px;font-weight:900;letter-spacing:-.04em}
+    .metric-note{font-size:11px;color:var(--muted);margin-top:4px}
+    .list{display:flex;flex-direction:column;gap:12px}
+    .list-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);background:#fff;border-radius:22px;box-shadow:0 8px 20px rgba(15,23,42,.035)}
+    .person{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+    .mini-av{width:44px;height:44px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:850;flex:0 0 auto}
+    .av-blue{background:var(--blueSoft);color:var(--blue)}
+    .av-green{background:var(--greenSoft);color:var(--green)}
+    .av-orange{background:var(--orangeSoft);color:var(--orange)}
+    .av-red{background:var(--redSoft);color:var(--red)}
+    .av-purple{background:var(--purpleSoft);color:var(--purple)}
+    .av-pink{background:var(--pinkSoft);color:var(--pink)}
+    .av-teal{background:var(--tealSoft);color:var(--teal)}
+    .person-copy{min-width:0;flex:1}
+    .name{font-size:14px;font-weight:850;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .meta{font-size:12px;color:var(--muted);line-height:1.35;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .split{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+    .split:last-child{border-bottom:0;padding-bottom:0}
+    .flow-list{display:grid;gap:10px}
+    .flow-item{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:flex-start}
+    .flow-no{width:26px;height:26px;border-radius:50%;background:var(--blueSoft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900}
+    .flow-item strong{font-size:12.5px}
+    .flow-item p{font-size:11px;color:var(--muted);line-height:1.45;margin-top:2px}
+    .search-box{position:sticky;top:0;z-index:8;background:linear-gradient(var(--phone) 78%, rgba(248,250,252,0));padding-bottom:10px}
+    .search-field{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:11px 12px;box-shadow:0 8px 18px rgba(15,23,42,.035)}
+    .search-field input{border:0;background:transparent;outline:0;width:100%;font-size:13px;color:var(--text)}
+    .salary{background:#fff;border:1px solid var(--line);border-radius:24px;padding:16px;box-shadow:0 8px 20px rgba(15,23,42,.04)}
+    .salary-head{text-align:center;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:12px}
+    .salary-head h3{font-size:15px;font-weight:850}
+    .salary-head p{font-size:12px;color:var(--muted);margin-top:4px}
+    .salary-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;padding:6px 0}
+    .salary-row.total{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;font-weight:850}
+    .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .cal-head{font-size:10px;color:var(--muted2);font-weight:850;text-align:center;padding:4px 0}
+    .day{height:35px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:850}
+    .day.hadir{background:var(--greenSoft);color:var(--green)}
+    .day.izin{background:var(--orangeSoft);color:var(--orange)}
+    .day.alpha{background:var(--redSoft);color:var(--red)}
+    .day.libur{background:#f1f5f9;color:#94a3b8}
+    .bottom-nav{position:absolute;left:14px;right:14px;bottom:14px;height:78px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:28px;box-shadow:0 14px 32px rgba(15,23,42,.12);display:grid;grid-template-columns:repeat(5,1fr);padding:10px 6px 12px;z-index:40}
+    .nav-btn{border:0;background:transparent;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--muted);font-size:11px;font-weight:750;cursor:pointer;padding:6px 4px;line-height:1}
+    .nav-btn .nav-ic{font-size:18px}
+    .nav-btn.active{color:var(--blue);background:#eff6ff}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    .info-box{background:#f8fafc;border:1px solid var(--line);border-radius:16px;padding:12px}
+    .info-box .k{font-size:11px;color:var(--muted)}
+    .info-box .v{font-size:13px;font-weight:850;margin-top:4px}
+    @media(max-width:460px){body{padding:0}.phone{width:100vw;height:100vh;border-radius:0;border-width:0}.phone:before{top:0}}
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="app">
+      <div class="statusbar"><span>9:41</span><span>📶 5G 🔋</span></div>
+
+      <section class="view active" id="view-login">
+        <div class="login-wrap">
+          <div class="login-hero">
+            <div class="kicker">Mobile HRIS Business Model</div>
+            <h1>Login sesuai role organisasi</h1>
+            <p>Satu aplikasi HRIS dengan dashboard berbeda untuk HR/Admin, Finance, Manager, Super Admin, dan Karyawan.</p>
+          </div>
+
+          <div class="role-grid" id="roleGrid"></div>
+
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">
+              <div>
+                <div style="font-size:16px;font-weight:850" id="loginTitle">Login HR / Admin</div>
+                <div class="helper" id="loginDesc">Kelola SDM, master data, approval, laporan.</div>
+              </div>
+              <span class="pill p-blue" id="loginPill">HR</span>
+            </div>
+            <div style="display:grid;gap:12px;">
+              <div><label class="label">Email / NIK</label><input class="input" id="emailInput" type="email" value="hrd@majubersama.co.id" /></div>
+              <div><label class="label">Password</label><input class="input" type="password" value="12345678" /></div>
+            </div>
+            <div class="login-actions">
+              <button class="btn btn-primary" onclick="loginSelectedRole()">Masuk ke Dashboard</button>
+              <button class="btn btn-secondary" onclick="openModelSummary()">Lihat ringkasan bisnis model</button>
+            </div>
+          </div>
+
+          <div class="section" id="modelSummary" style="display:none;">
+            <div class="card">
+              <div class="section-head"><div class="section-title">Ringkasan Alur Sistem</div></div>
+              <div class="flow-list">
+                <div class="flow-item"><div class="flow-no">1</div><div><strong>Login & Role Access</strong><p>User masuk menggunakan Email/NIK dan sistem membaca role.</p></div></div>
+                <div class="flow-item"><div class="flow-no">2</div><div><strong>Role Based Access</strong><p>Menu dashboard disesuaikan dengan HR, Finance, Manager, Super Admin, atau Karyawan.</p></div></div>
+                <div class="flow-item"><div class="flow-no">3</div><div><strong>Master Data Karyawan</strong><p>Data karyawan menjadi pusat untuk absensi, cuti, payroll, laporan, dan audit.</p></div></div>
+                <div class="flow-item"><div class="flow-no">4</div><div><strong>Automation System</strong><p>Absensi, approval, payroll, notifikasi, akun, laporan, dan audit berjalan otomatis.</p></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-app">
+        <div class="topbar">
+          <div>
+            <div class="eyebrow" id="appEyebrow">HRIS Portal</div>
+            <div class="title" id="pageTitle">Dashboard</div>
+          </div>
+          <div class="top-right">
+            <button class="icon-btn" onclick="showView('login')">⇄</button>
+            <button class="icon-btn">🔔<span class="notif-dot"></span></button>
+            <div class="avatar" id="userAvatar">HR</div>
+          </div>
+        </div>
+        <div class="subnav" id="subnav"></div>
+        <div class="content" id="content"></div>
+        <nav class="bottom-nav" id="bottomNav"></nav>
+      </section>
+    </div>
+  </div>
+
+<script>
+const roles = {
+  hr: {
+    name:'HR / Admin', short:'HR', color:'blue', email:'hrd@majubersama.co.id',
+    desc:'Kelola SDM, master data, approval, laporan.',
+    pages:[['home','Home','⌂'],['master','Data','👥'],['leave','Cuti','🗓'],['report','Laporan','📊'],['automation','Auto','⚙️']]
+  },
+  finance: {
+    name:'Finance', short:'FN', color:'orange', email:'finance@majubersama.co.id',
+    desc:'Kelola payroll, tunjangan, potongan, laporan gaji.',
+    pages:[['home','Home','⌂'],['payroll','Payroll','💰'],['report','Report','📊'],['audit','Audit','🔍'],['profile','Akun','👤']]
+  },
+  manager: {
+    name:'Manager', short:'MG', color:'teal', email:'manager@majubersama.co.id',
+    desc:'Kelola tim, approval cuti, dan monitor absensi tim.',
+    pages:[['home','Home','⌂'],['team','Tim','👥'],['attendance','Absensi','🕘'],['leave','Cuti','🗓'],['profile','Akun','👤']]
+  },
+  superadmin: {
+    name:'Super Admin', short:'SA', color:'purple', email:'admin@majubersama.co.id',
+    desc:'Kelola akun, role, setting sistem, dan audit.',
+    pages:[['home','Home','⌂'],['access','Role','🔐'],['automation','Auto','⚙️'],['audit','Audit','🔍'],['profile','Akun','👤']]
+  },
+  employee: {
+    name:'Karyawan', short:'RW', color:'pink', email:'rizki@majubersama.co.id',
+    desc:'Akses ESS, absensi, cuti, slip gaji, dan profil pribadi.',
+    pages:[['home','Home','⌂'],['attendance','Absensi','🕘'],['leave','Cuti','🗓'],['payroll','Gaji','💰'],['profile','Profil','👤']]
+  }
+};
+let selectedRole = 'hr';
+let state = { role:'hr', page:'home' };
+
+function initLogin(){
+  const grid = document.getElementById('roleGrid');
+  grid.innerHTML = Object.entries(roles).map(([key, r]) => `
+    <button class="role-btn ${key===selectedRole?'active':''}" onclick="selectRole('${key}')">
+      <strong>${r.name}</strong><span>${r.desc}</span>
+    </button>
+  `).join('');
+  updateLoginPanel();
+}
+function selectRole(role){selectedRole=role;initLogin();}
+function updateLoginPanel(){
+  const r=roles[selectedRole];
+  document.getElementById('loginTitle').textContent='Login '+r.name;
+  document.getElementById('loginDesc').textContent=r.desc;
+  document.getElementById('loginPill').textContent=r.name;
+  document.getElementById('loginPill').className='pill p-'+r.color;
+  document.getElementById('emailInput').value=r.email;
+}
+function loginSelectedRole(){state.role=selectedRole;state.page='home';renderApp();showView('app');}
+function showView(v){
+  document.getElementById('view-login').classList.toggle('active',v==='login');
+  document.getElementById('view-app').classList.toggle('active',v==='app');
+}
+function openModelSummary(){
+  const el=document.getElementById('modelSummary');
+  el.style.display=el.style.display==='none'?'block':'none';
+}
+function switchPage(page){state.page=page;renderApp();}
+function role(){return roles[state.role]}
+function renderApp(){
+  const r=role();
+  document.getElementById('appEyebrow').textContent='HRIS Portal · '+r.name;
+  document.getElementById('userAvatar').textContent=r.short;
+  document.getElementById('pageTitle').textContent=titleFor(state.page);
+  document.getElementById('subnav').innerHTML=r.pages.map(p=>`<button class="btn chip ${state.page===p[0]?'active':''}" onclick="switchPage('${p[0]}')">${p[1]}</button>`).join('');
+  document.getElementById('bottomNav').innerHTML=r.pages.map(p=>`<button class="nav-btn ${state.page===p[0]?'active':''}" onclick="switchPage('${p[0]}')"><span class="nav-ic">${p[2]}</span><span>${p[1]}</span></button>`).join('');
+  document.getElementById('content').innerHTML=renderPage(state.role,state.page);
+}
+function titleFor(p){return ({home:'Dashboard',master:'Data Karyawan',leave:'Cuti & Izin',report:'Laporan',automation:'Automation',payroll:'Payroll',audit:'Audit Log',team:'Tim Saya',attendance:'Absensi',profile:'Profil',access:'Role & Access'})[p]||'Dashboard'}
+function renderPage(roleKey,page){
+  const common = {
+    master: masterDataPage,
+    leave: leavePage,
+    report: reportPage,
+    automation: automationPage,
+    payroll: payrollPage,
+    audit: auditPage,
+    team: teamPage,
+    attendance: attendancePage,
+    profile: profilePage,
+    access: accessPage
+  };
+  if(page==='home') return homePage(roleKey);
+  return common[page] ? common[page](roleKey) : homePage(roleKey);
+}
+function hero(title,desc,badge){return `<div class="section"><div class="hero"><div><h2>${title}</h2><p>${desc}</p></div><div class="big">${badge}</div></div></div>`}
+function metric(label,value,note,icon='📌'){return `<div class="metric"><div class="metric-head"><div><div class="metric-label">${label}</div><div class="metric-value">${value}</div></div><div class="metric-icon">${icon}</div></div><div class="metric-note">${note}</div></div>`}
+function person(initial,name,meta,status,pill='green',av='blue'){return `<div class="list-card"><div class="person"><div class="mini-av av-${av}">${initial}</div><div class="person-copy"><div class="name">${name}</div><div class="meta">${meta}</div></div></div><span class="pill p-${pill}">${status}</span></div>`}
+function split(title,meta,right){return `<div class="split"><div><div class="name" style="font-size:13px;white-space:normal">${title}</div><div class="meta" style="white-space:normal">${meta}</div></div><div>${right}</div></div>`}
+function flow(items){return `<div class="flow-list">${items.map((it,i)=>`<div class="flow-item"><div class="flow-no">${i+1}</div><div><strong>${it[0]}</strong><p>${it[1]}</p></div></div>`).join('')}</div>`}
+
+function homePage(roleKey){
+  if(roleKey==='hr') return hero('Dashboard HR / Admin','Kelola master data, approval cuti, payroll, laporan, dan automation dari satu aplikasi mobile.','HR')+`<div class="section"><div class="grid-2">${metric('Total Karyawan','120','+4 bulan ini','👥')}${metric('Approval Menunggu','7','3 cuti, 2 lembur, 2 izin','🗂')}${metric('Hadir Hari Ini','108','90% kehadiran','🕘')}${metric('Payroll April','89%','Target selesai 18 Apr','💰')}</div></div><div class="section"><div class="section-head"><div class="section-title">Karyawan terbaru</div></div><div class="list">${person('RW','Rizki Wahyu','Staff IT · Pusat','Aktif','green','blue')}${person('DP','Dinda Pratiwi','Keuangan · Jakarta','Probasi','orange','orange')}</div></div>`;
+  if(roleKey==='finance') return hero('Dashboard Finance','Fokus pada payroll, tunjangan, potongan, slip gaji, dan laporan penggajian.','Finance')+`<div class="section"><div class="grid-2">${metric('Total Payroll','890jt','April 2025','💰')}${metric('Slip Diproses','94','26 menunggu final','📄')}${metric('Potongan','46.9jt','BPJS + PPh21','➖')}${metric('Lembur','12.4jt','Akumulasi bulan ini','⏱')}</div></div><div class="section"><div class="card"><div class="section-title">Task Payroll</div>${split('Validasi rekap absensi','Sumber data untuk perhitungan gaji','<span class="pill p-green">Done</span>')}${split('Hitung tunjangan & potongan','Butuh review Finance','<span class="pill p-orange">Proses</span>')}${split('Generate slip gaji','Setelah HR approve final','<span class="pill p-blue">Queue</span>')}</div></div>`;
+  if(roleKey==='manager') return hero('Dashboard Manager','Pantau anggota tim, absensi tim, dan approval pengajuan cuti bawahan.','Manager')+`<div class="section"><div class="grid-2">${metric('Anggota Tim','12','Divisi IT','👥')}${metric('Cuti Menunggu','3','Perlu review','🗓')}${metric('Hadir Tim','10','2 izin/sakit','🕘')}${metric('Performa','92%','Rata-rata bulan ini','📈')}</div></div><div class="section"><div class="card"><div class="section-title">Approval Tim</div>${split('Andi Saputra','Cuti 14–16 Apr','<span class="pill p-orange">Review</span>')}${split('Maya Putri','Izin sakit 1 hari','<span class="pill p-orange">Review</span>')}</div></div>`;
+  if(roleKey==='superadmin') return hero('Dashboard Super Admin','Kelola akun, role, pengaturan sistem, automation rule, dan audit log.','Root')+`<div class="section"><div class="grid-2">${metric('Akun Aktif','125','120 karyawan + 5 admin','🔐')}${metric('Role Aktif','5','HR, Finance, Manager, Admin, ESS','👤')}${metric('Automation','7','Semua rule aktif','⚙️')}${metric('Audit Event','342','Bulan ini','🔍')}</div></div><div class="section"><div class="card"><div class="section-title">Kontrol Sistem</div>${split('Role Based Access','Setiap role punya menu berbeda','<span class="pill p-purple">Aktif</span>')}${split('Audit Log','Mencatat perubahan data sensitif','<span class="pill p-green">Aktif</span>')}</div></div>`;
+  return hero('Halo, Rizki Wahyu','Akses absensi, pengajuan cuti, slip gaji, notifikasi, dan profil pribadi lewat Employee Self Service.','ESS')+`<div class="section"><div class="grid-2">${metric('Hadir Bulan Ini','18','1 izin · 1 alpha','🕘')}${metric('Sisa Cuti','9','dari 12 hari','🗓')}${metric('Gajian','25','Tanggal payroll','💰')}${metric('Notifikasi','2','1 status cuti baru','🔔')}</div></div><div class="section"><div class="card"><div class="section-title">Status Hari Ini</div>${split('Check-in','07:58 WIB · Kantor Pusat','<span class="pill p-green">Tepat</span>')}${split('Jam Kerja','08:00–17:00','<span class="pill p-blue">Normal</span>')}</div></div>`;
+}
+function masterDataPage(){return `<div class="search-box"><div class="search-field">🔎 <input placeholder="Cari nama, NIK, departemen" /></div></div><div class="section"><div class="list">${person('RW','Rizki Wahyu','KRY-001 · IT · Pusat','Aktif','green','blue')}${person('SA','Sinta Amalia','KRY-002 · Marketing · Surabaya','Aktif','green','green')}${person('DP','Dinda Pratiwi','KRY-003 · Keuangan · Jakarta','Probasi','orange','orange')}${person('BS','Budi Santoso','KRY-004 · Operasional · Pusat','Aktif','green','red')}</div></div><div class="section"><div class="card"><div class="section-head"><div class="section-title">Fungsi Master Data</div></div>${flow([['Input / Edit Data','HR menambahkan profil, jabatan, departemen, status kerja, gaji dasar, dan sisa cuti.'],['Akun Otomatis','Saat karyawan baru dibuat, sistem dapat membuat akun ESS secara otomatis.'],['Dipakai Semua Modul','Data ini menjadi sumber untuk absensi, cuti, payroll, laporan, dan audit.']])}</div></div>`}
+function leavePage(roleKey){const isEmployee=roleKey==='employee';return isEmployee?`<div class="section"><div class="card"><div class="section-head"><div class="section-title">Ajukan cuti</div><span class="pill p-blue">Sisa 9 hari</span></div><div style="display:grid;gap:12px;"><div><label class="label">Jenis cuti</label><input class="input" value="Cuti Tahunan" /></div><div><label class="label">Tanggal</label><input class="input" value="22–24 Apr 2025" /></div><div><label class="label">Alasan</label><input class="input" value="Keperluan keluarga" /></div><button class="btn btn-primary">Kirim Pengajuan</button></div></div></div><div class="section"><div class="card"><div class="section-title">Riwayat</div>${split('Cuti Tahunan','22–24 Apr 2025','<span class="pill p-orange">Menunggu</span>')}${split('Cuti Sakit','11 Apr 2025','<span class="pill p-green">Disetujui</span>')}</div></div>`:`<div class="section"><div class="card"><div class="section-head"><div class="section-title">Pengajuan cuti & izin</div><span class="pill p-orange">3 Baru</span></div>${split('Andi Saputra','IT · Cuti Tahunan · 14–16 Apr','<span class="pill p-orange">Review</span>')}${split('Maya Putri','Keuangan · Cuti Sakit · 11 Apr','<span class="pill p-orange">Review</span>')}${split('Dinda Pratiwi','Keuangan · 22–25 Apr','<span class="pill p-green">Disetujui</span>')}</div></div><div class="section"><div class="card"><div class="section-title">Automation Cuti</div>${flow([['Cek Kuota','Sistem mengecek sisa cuti sebelum pengajuan dikirim.'],['Kirim Approval','Notifikasi otomatis dikirim ke Manager atau HR.'],['Update Status','Setelah disetujui, kuota dan riwayat cuti otomatis berubah.']])}</div></div>`}
+function payrollPage(roleKey){return `<div class="section"><div class="grid-2">${metric('Total Payroll','890jt','April 2025','💰')}${metric('Slip Selesai','94','26 proses','📄')}</div></div><div class="section"><div class="salary"><div class="salary-head"><h3>Slip Gaji · April 2025</h3><p>${roleKey==='employee'?'Rizki Wahyu · Staff IT':'Preview payroll karyawan'}</p></div><div class="salary-row"><span>Gaji Pokok</span><strong>Rp 6.000.000</strong></div><div class="salary-row"><span>Tunjangan</span><strong>Rp 1.000.000</strong></div><div class="salary-row"><span>Lembur</span><strong>Rp 600.000</strong></div><div class="salary-row"><span>Potongan</span><strong style="color:var(--red)">Rp 400.000</strong></div><div class="salary-row total"><span>Total Bersih</span><span style="color:var(--green)">Rp 7.200.000</span></div></div></div>`}
+function reportPage(){return `<div class="section"><div class="list">${person('📋','Laporan Absensi','Rekap hadir, telat, izin, alpha','PDF','blue','blue')}${person('💰','Laporan Payroll','Payroll, tunjangan, potongan','Excel','green','green')}${person('🗓','Laporan Cuti','Sisa kuota dan riwayat cuti','PDF','orange','orange')}${person('🔍','Audit Log','Riwayat perubahan data','Secure','red','red')}</div></div><div class="section"><div class="card"><div class="section-title">Report Automation</div>${flow([['Generate Berkala','Setiap tanggal 1 sistem membuat laporan bulan sebelumnya.'],['Export Otomatis','Data bisa diunduh PDF/Excel untuk HR dan Finance.'],['Monitoring','Data anomali seperti telat tinggi atau cuti berlebih ditandai sistem.']])}</div></div>`}
+function automationPage(){return `<div class="section"><div class="list">${person('AT','Attendance Automation','Auto telat, alpha, lembur','Aktif','green','teal')}${person('LA','Leave Approval','Cek kuota, reminder approval','Aktif','green','blue')}${person('PY','Payroll Automation','Hitung gaji & generate slip','Aktif','green','orange')}${person('NT','Notification Automation','Push notif status & reminder','Aktif','green','purple')}${person('AC','Account & Access','Buat akun & nonaktifkan akses','Aktif','green','red')}${person('RP','Report & Audit','Laporan berkala & audit log','Aktif','green','green')}</div></div><div class="section"><div class="card"><div class="section-title">Alur Automation Engine</div>${flow([['Event Terjadi','Misalnya karyawan check-in, ajukan cuti, payroll final, atau data diubah.'],['Rule Dijalankan','Sistem membaca aturan otomatis sesuai event.'],['Output Dibuat','Notifikasi, laporan, slip gaji, update kuota, atau audit log dibuat otomatis.']])}</div></div>`}
+function auditPage(){return `<div class="section"><div class="card"><div class="section-head"><div class="section-title">Audit Log</div><span class="pill p-red">Secure</span></div>${split('HR mengubah gaji pokok','Rizki Wahyu · 09:15','<span class="pill p-red">Sensitive</span>')}${split('Finance generate payroll','April 2025 · 10:20','<span class="pill p-blue">Payroll</span>')}${split('Manager approve cuti','Andi Saputra · 13:05','<span class="pill p-green">Approved</span>')}${split('Super Admin ubah role','Finance User · 14:30','<span class="pill p-purple">Access</span>')}</div></div>`}
+function teamPage(){return `<div class="section"><div class="list">${person('AS','Andi Saputra','Frontend Developer · Tim IT','Hadir','green','blue')}${person('RW','Rizki Wahyu','Staff IT · Tim IT','Hadir','green','green')}${person('MP','Maya Putri','Analis Keuangan · Support','Cuti','orange','orange')}</div></div><div class="section"><div class="card"><div class="section-title">Akses Manager</div>${flow([['Pantau Tim','Manager hanya melihat anggota timnya sendiri.'],['Approval','Manager memberi persetujuan awal untuk cuti dan izin tim.'],['Monitoring','Manager memantau absensi, performa, dan beban kerja tim.']])}</div></div>`}
+function attendancePage(){return `<div class="section"><div class="card" style="background:linear-gradient(135deg,#ecfdf5,#fff);border-color:#bbf7d0;"><div class="section-head"><div class="section-title">Absensi Hari Ini</div><span class="pill p-green">Tepat Waktu</span></div>${split('Check-in','07:58 WIB · Kantor Pusat','<span class="pill p-green">Valid</span>')}${split('Jam Kerja','08:00–17:00','<span class="pill p-blue">Normal</span>')}</div></div><div class="section"><div class="card"><div class="section-head"><div class="section-title">Kalender Kehadiran</div></div><div class="calendar"><div class="cal-head">S</div><div class="cal-head">S</div><div class="cal-head">R</div><div class="cal-head">K</div><div class="cal-head">J</div><div class="cal-head">S</div><div class="cal-head">M</div><div class="day libur">-</div><div class="day hadir">1</div><div class="day hadir">2</div><div class="day hadir">3</div><div class="day hadir">4</div><div class="day libur">5</div><div class="day libur">6</div><div class="day hadir">7</div><div class="day hadir">8</div><div class="day hadir">9</div><div class="day izin">10</div><div class="day hadir">11</div><div class="day libur">12</div><div class="day libur">13</div><div class="day hadir">14</div><div class="day hadir">15</div><div class="day hadir">16</div><div class="day hadir">17</div><div class="day alpha">18</div><div class="day libur">19</div><div class="day libur">20</div></div></div></div>`}
+function accessPage(){return `<div class="section"><div class="list">${person('HR','HR / Admin','Data karyawan, approval, payroll, laporan','Full','blue','blue')}${person('FN','Finance','Payroll, tunjangan, potongan, laporan gaji','Limited','orange','orange')}${person('MG','Manager','Data tim, approval cuti, monitor absensi','Team','teal','teal')}${person('KY','Karyawan','Data pribadi, absensi, cuti, slip gaji','Self','pink','pink')}</div></div><div class="section"><div class="card"><div class="section-title">Account & Access Automation</div>${flow([['Auto Create Account','Saat HR menambah karyawan baru, akun ESS dibuat otomatis.'],['Auto Disable Account','Saat status resign/terminated, akses otomatis dinonaktifkan.'],['Role Change Log','Perubahan role dicatat ke audit log.']])}</div></div>`}
+function profilePage(roleKey){const r=roles[roleKey];return `<div class="section"><div class="card" style="display:flex;align-items:center;gap:14px;"><div class="mini-av av-${r.color}" style="width:60px;height:60px;border-radius:22px;">${r.short}</div><div><div class="name" style="white-space:normal">${r.name}</div><div class="meta" style="white-space:normal">${r.email}</div><div style="margin-top:8px"><span class="pill p-${r.color}">${r.name}</span></div></div></div><div class="info-grid"><div class="info-box"><div class="k">Role</div><div class="v">${r.name}</div></div><div class="info-box"><div class="k">Status</div><div class="v">Aktif</div></div><div class="info-box"><div class="k">Akses</div><div class="v">Sesuai Role</div></div><div class="info-box"><div class="k">Audit</div><div class="v">Tercatat</div></div></div></div>`}
+
+initLogin();
+renderApp();
+</script>
+</body>
+</html>
