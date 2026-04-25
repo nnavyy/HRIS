@@ -8,6 +8,7 @@ data class User(
     val employeeId: String = "",
     val departmentId: String = "",
     val branch: String = "",
+    val officeId: String = "", // Added for Geofencing Location binding
     val status: String = "active",
     val createdAt: Long = System.currentTimeMillis()
 )

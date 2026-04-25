@@ -54,5 +54,27 @@ class AuthRepository {
         }
     }
 
+    suspend fun createUserByAdmin(context: android.content.Context, email: String, password: String, user: User): Result<String> {
+        return try {
+            val options = com.google.firebase.FirebaseApp.getInstance().options
+            var secondaryApp = com.google.firebase.FirebaseApp.getApps(context).find { it.name == "secondaryApp" }
+            if (secondaryApp == null) {
+                secondaryApp = com.google.firebase.FirebaseApp.initializeApp(context, options, "secondaryApp")
+            }
+            val secondaryAuth = com.google.firebase.auth.FirebaseAuth.getInstance(secondaryApp!!)
+
+            val result = secondaryAuth.createUserWithEmailAndPassword(email, password).await()
+            val uid = result.user?.uid ?: throw Exception("Gagal buat akun")
+            
+            secondaryApp.delete()
+
+            val userData = user.copy(userId = uid)
+            db.collection(Constants.Collections.USERS).document(uid).set(userData).await()
+            Result.success(uid)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun logout() { auth.signOut() }
 }

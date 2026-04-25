@@ -1,0 +1,43 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check role from Firestore (Requires Firebase Storage rules to interact with Firestore, which is allowed in version 2 using firestore.get)
+    // Note: Due to billing/latency, it's sometimes better to use Custom Claims. But for MVP, this works.
+    function getUserRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isSuperAdmin() {
+      return request.auth != null && getUserRole() == 'super_admin';
+    }
+
+    function isHR() {
+      return request.auth != null && getUserRole() == 'hr';
+    }
+
+    function isManager() {
+      return request.auth != null && getUserRole() == 'manager';
+    }
+
+    match /attendance_selfies/{employeeId}/{fileName} {
+      // Employees can upload their own selfies.
+      allow create: if request.auth != null && request.auth.uid == employeeId
+                    && request.resource.size < 5 * 1024 * 1024 // max 5MB
+                    && request.resource.contentType.matches('image/.*');
+      
+      // Only the employee, HR, Manager, or Superadmin can read the selfie.
+      allow read: if request.auth != null && (
+        request.auth.uid == employeeId || 
+        isSuperAdmin() || 
+        isHR() || 
+        isManager()
+      );
+      
+      // Deletion only by Superadmin
+      allow delete: if isSuperAdmin();
+      allow update: if false; // Selfies shouldn't be updated/replaced
+    }
+  }
+}

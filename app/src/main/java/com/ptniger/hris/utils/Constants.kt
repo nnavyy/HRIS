@@ -27,10 +27,25 @@ object Constants {
         const val ABSENT = "absent"
         const val LEAVE = "leave"
         const val HOLIDAY = "holiday"
+        
+        // Geofencing & Validation Status
+        const val VALID = "valid"
+        const val INVALID_LOCATION = "invalid_location"
+        const val NEED_REVIEW = "need_review"
+        const val REJECTED = "rejected"
+        const val APPROVED_MANUALLY = "approved_manually"
+    }
+
+    object AttendanceType {
+        const val CLOCK_IN = "clock_in"
+        const val CLOCK_OUT = "clock_out"
     }
 
     object PayrollStatus {
         const val DRAFT = "draft"
+        const val PENDING_APPROVAL = "pending_approval"
+        const val APPROVED = "approved"
+        const val REJECTED = "rejected"
         const val FINALIZED = "finalized"
         const val PAID = "paid"
     }
@@ -52,5 +67,6 @@ object Constants {
         const val NOTIFICATIONS = "notifications"
         const val AUDIT_LOGS = "audit_logs"
         const val AUTOMATION_RULES = "automation_rules"
+        const val OFFICE_LOCATIONS = "office_locations"
     }
 }

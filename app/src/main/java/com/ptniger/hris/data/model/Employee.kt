@@ -10,6 +10,7 @@ data class Employee(
     val position: String = "",
     val department: String = "",
     val branch: String = "",
+    val officeId: String = "", // Added for Geofencing Location binding
     val joinDate: String = "",
     val employmentStatus: String = "active",
     val baseSalary: Double = 0.0,

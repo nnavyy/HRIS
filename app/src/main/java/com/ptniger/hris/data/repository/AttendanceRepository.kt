@@ -1,28 +1,81 @@
 package com.ptniger.hris.data.repository
 
+import android.net.Uri
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import com.ptniger.hris.data.model.Attendance
+import com.ptniger.hris.data.model.OfficeLocation
 import com.ptniger.hris.utils.Constants
 import com.ptniger.hris.utils.DateUtils
+import com.ptniger.hris.utils.LocationUtils
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
 class AttendanceRepository {
     private val db = FirebaseFirestore.getInstance()
+    private val storage = FirebaseStorage.getInstance()
     private val col = db.collection(Constants.Collections.ATTENDANCE)
+    private val officeCol = db.collection(Constants.Collections.OFFICE_LOCATIONS)
+
+    suspend fun submitAttendance(
+        attendance: Attendance, 
+        imageUri: Uri, 
+        office: OfficeLocation?
+    ): Result<String> {
+        return try {
+            // 1. Upload Selfie
+            val storageRef = storage.reference.child("attendance_selfies/${attendance.employeeId}/${UUID.randomUUID()}.jpg")
+            storageRef.putFile(imageUri).await()
+            val downloadUrl = storageRef.downloadUrl.await().toString()
+
+            // 2. Calculate Distance if Office is provided
+            var distance = 0.0
+            var isWithinRadius = false
+            var status = Constants.AttendanceStatus.VALID
+
+            if (office != null) {
+                distance = LocationUtils.calculateDistance(
+                    attendance.latitude, attendance.longitude,
+                    office.latitude, office.longitude
+                ).toDouble()
+                isWithinRadius = distance <= office.allowedRadiusMeters
+                if (!isWithinRadius) {
+                    status = Constants.AttendanceStatus.INVALID_LOCATION
+                }
+            } else {
+                status = Constants.AttendanceStatus.NEED_REVIEW // No office linked
+            }
+
+            // 3. Prepare Final Attendance Object
+            val finalAttendance = attendance.copy(
+                selfieUrl = downloadUrl,
+                selfieStoragePath = storageRef.path,
+                distanceFromOfficeMeters = distance,
+                isWithinOfficeRadius = isWithinRadius,
+                status = status,
+                officeId = office?.id ?: "",
+                officeLatitude = office?.latitude ?: 0.0,
+                officeLongitude = office?.longitude ?: 0.0
+            )
+
+            // 4. Save to Firestore
+            val ref = col.add(finalAttendance).await()
+            Result.success(ref.id)
+        } catch (e: Exception) { Result.failure(e) }
+    }
 
     suspend fun checkIn(employeeId: String, location: String): Result<String> {
         return try {
-            val time = DateUtils.nowTime()
-            val status = if (DateUtils.isLate(time)) Constants.AttendanceStatus.LATE
-                         else Constants.AttendanceStatus.PRESENT
-            val late = DateUtils.calculateLateMinutes(time)
-            val att = Attendance(
-                employeeId = employeeId, date = DateUtils.today(),
-                checkIn = time, status = status,
-                lateMinutes = late, location = location
+            val now = DateUtils.nowTime()
+            val attendance = Attendance(
+                employeeId = employeeId,
+                date = DateUtils.today(),
+                checkIn = now,
+                location = location,
+                status = if (DateUtils.isLate(now)) Constants.AttendanceStatus.LATE else Constants.AttendanceStatus.PRESENT
             )
-            val ref = col.add(att).await()
+            val ref = col.add(attendance).await()
             Result.success(ref.id)
         } catch (e: Exception) { Result.failure(e) }
     }
@@ -32,6 +85,23 @@ class AttendanceRepository {
             col.document(attendanceId).update("checkOut", DateUtils.nowTime()).await()
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun updateAttendanceStatus(attendanceId: String, newStatus: String): Result<Unit> {
+        return try {
+            col.document(attendanceId).update("status", newStatus).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun getPendingReviews(): List<Attendance> {
+        return try {
+            col.whereIn("status", listOf(Constants.AttendanceStatus.INVALID_LOCATION, Constants.AttendanceStatus.NEED_REVIEW))
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .get().await().documents.mapNotNull {
+                    it.toObject(Attendance::class.java)?.copy(attendanceId = it.id)
+                }
+        } catch (e: Exception) { emptyList() }
     }
 
     suspend fun getTodayAttendance(employeeId: String): Attendance? {

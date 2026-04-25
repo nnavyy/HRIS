@@ -70,4 +70,89 @@ class PayrollRepository {
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
+
+    suspend fun requestApproval(payrollId: String, financeId: String): Result<Unit> {
+        return try {
+            val doc = col.document(payrollId).get().await()
+            val payroll = doc.toObject(Payroll::class.java) ?: throw Exception("Payroll not found")
+            if (payroll.status != Constants.PayrollStatus.DRAFT) throw Exception("Only draft payrolls can request approval")
+            
+            col.document(payrollId).update(
+                mapOf(
+                    "status" to Constants.PayrollStatus.PENDING_APPROVAL,
+                    "requestedByFinanceId" to financeId,
+                    "requestedAt" to System.currentTimeMillis()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun processApproval(payrollId: String, managerId: String, isApproved: Boolean, notes: String): Result<Unit> {
+        return try {
+            val doc = col.document(payrollId).get().await()
+            val payroll = doc.toObject(Payroll::class.java) ?: throw Exception("Payroll not found")
+            if (payroll.status != Constants.PayrollStatus.PENDING_APPROVAL) throw Exception("Payroll is not pending approval")
+            
+            val status = if (isApproved) Constants.PayrollStatus.APPROVED else Constants.PayrollStatus.REJECTED
+            val updates = mutableMapOf<String, Any>(
+                "status" to status,
+                "approvalNotes" to notes
+            )
+            if (isApproved) {
+                updates["approvedByManagerId"] = managerId
+                updates["approvedAt"] = System.currentTimeMillis()
+            } else {
+                updates["rejectedByManagerId"] = managerId
+                updates["rejectedAt"] = System.currentTimeMillis()
+                updates["rejectionReason"] = notes
+            }
+            
+            col.document(payrollId).update(updates).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun getPendingApprovals(): List<Payroll> {
+        return try {
+            col.whereEqualTo("status", Constants.PayrollStatus.PENDING_APPROVAL)
+                .get().await().documents.mapNotNull {
+                    it.toObject(Payroll::class.java)?.copy(payrollId = it.id)
+                }
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun finalizePayroll(payrollId: String, financeId: String): Result<Unit> {
+        return try {
+            val doc = col.document(payrollId).get().await()
+            val payroll = doc.toObject(Payroll::class.java) ?: throw Exception("Payroll not found")
+            if (payroll.status != Constants.PayrollStatus.APPROVED) throw Exception("Only approved payrolls can be finalized")
+            
+            col.document(payrollId).update(
+                mapOf(
+                    "status" to Constants.PayrollStatus.FINALIZED,
+                    "finalizedByFinanceId" to financeId,
+                    "finalizedAt" to System.currentTimeMillis()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun markPayrollAsPaid(payrollId: String, financeId: String): Result<Unit> {
+        return try {
+            val doc = col.document(payrollId).get().await()
+            val payroll = doc.toObject(Payroll::class.java) ?: throw Exception("Payroll not found")
+            if (payroll.status != Constants.PayrollStatus.FINALIZED) throw Exception("Only finalized payrolls can be paid")
+            
+            col.document(payrollId).update(
+                mapOf(
+                    "status" to Constants.PayrollStatus.PAID,
+                    "paidByFinanceId" to financeId,
+                    "paidAt" to System.currentTimeMillis()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
 }
