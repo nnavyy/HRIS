@@ -74,7 +74,6 @@ class CreateUserViewModel : ViewModel() {
                 val employee = Employee(
                     name = name,
                     email = email,
-                    role = role,
                     officeId = officeId,
                     department = department,
                     position = position,

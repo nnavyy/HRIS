@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ptniger.hris.data.model.User
 import com.ptniger.hris.data.repository.AuthRepository
+import com.ptniger.hris.utils.AutomationEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -23,6 +24,8 @@ class LoginViewModel : ViewModel() {
                 authRepo.getCurrentUserData().fold(
                     onSuccess = { user ->
                         _uiState.value = _uiState.value.copy(isLoading = false, loggedInUser = user)
+                        // Pre-load automation rules for the session
+                        viewModelScope.launch { try { AutomationEngine.refreshRules() } catch (_: Exception) {} }
                     },
                     onFailure = {
                         _uiState.value = _uiState.value.copy(isLoading = false)
@@ -38,6 +41,8 @@ class LoginViewModel : ViewModel() {
             authRepo.login(email, password).fold(
                 onSuccess = { user ->
                     _uiState.value = _uiState.value.copy(isLoading = false, loggedInUser = user)
+                    // Pre-load automation rules for the session
+                    viewModelScope.launch { try { AutomationEngine.refreshRules() } catch (_: Exception) {} }
                 },
                 onFailure = { e ->
                     _uiState.value = _uiState.value.copy(isLoading = false, error = e.message ?: "Login gagal")

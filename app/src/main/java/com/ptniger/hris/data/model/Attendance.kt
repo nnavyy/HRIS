@@ -4,13 +4,14 @@ data class Attendance(
     val attendanceId: String = "",
     val employeeId: String = "",
     val date: String = "",
-    val type: String = "clock_in", // clock_in or clock_out
+    val clockType: String = "clock_in", // clock_in or clock_out
     val checkIn: String = "",
     val checkOut: String = "",
-    val status: String = "valid", // valid, invalid_location, need_review, etc
+    val attendanceStatus: String = "present", // present, late, absent, leave, holiday
+    val validationStatus: String = "valid", // valid, invalid_location, need_review, rejected, approved_manually
     val lateMinutes: Int = 0,
     val overtimeHours: Double = 0.0,
-    val location: String = "", // Keeping for backward compatibility (could be address string)
+    val location: String = "", // Legacy
     
     // Selfie & Geofencing Data
     val selfieUrl: String = "",

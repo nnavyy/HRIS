@@ -29,15 +29,38 @@ service cloud.firestore {
 
     // --- USERS ---
     match /users/{userId} {
-      // Superadmin can do everything. Everyone can read to resolve names/roles.
       allow read: if isLoggedIn();
-      allow write: if isSuperAdmin() || request.auth.uid == userId;
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (
+        request.auth.uid == userId &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.roles == resource.data.roles &&
+        request.resource.data.primaryRole == resource.data.primaryRole &&
+        request.resource.data.employeeId == resource.data.employeeId &&
+        request.resource.data.nik == resource.data.nik &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.isActive == resource.data.isActive
+      );
+      allow delete: if isSuperAdmin();
     }
 
     // --- EMPLOYEES ---
     match /employees/{employeeId} {
-      allow read: if isLoggedIn();
-      allow write: if isSuperAdmin() || isHR();
+      // Employees can only read their own data. Managers can read team (assuming managerId == request.auth.uid). HR/Superadmin can read all.
+      allow read: if isSuperAdmin() || isHR() || 
+                  (isLoggedIn() && resource.data.userId == request.auth.uid) || 
+                  (isManager() && resource.data.managerId == request.auth.uid);
+      
+      allow create: if isSuperAdmin() || isHR();
+      allow update: if isSuperAdmin() || isHR() || (
+        isLoggedIn() && resource.data.userId == request.auth.uid &&
+        request.resource.data.baseSalary == resource.data.baseSalary &&
+        request.resource.data.departmentId == resource.data.departmentId &&
+        request.resource.data.position == resource.data.position &&
+        request.resource.data.managerId == resource.data.managerId &&
+        request.resource.data.employmentStatus == resource.data.employmentStatus
+      );
+      allow delete: if isSuperAdmin() || isHR();
     }
 
     // --- OFFICE LOCATIONS ---

@@ -1,12 +1,22 @@
 package com.ptniger.hris.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.ptniger.hris.data.model.User
+import com.ptniger.hris.ui.admin.AccountManagementScreen
 import com.ptniger.hris.ui.admin.AutomationScreen
 import com.ptniger.hris.ui.admin.RoleManagementScreen
 import com.ptniger.hris.ui.attendance.AttendanceMonitorScreen
@@ -26,6 +36,7 @@ import com.ptniger.hris.ui.payroll.PayrollScreen
 import com.ptniger.hris.ui.payroll.SalarySlipScreen
 import com.ptniger.hris.ui.profile.ProfileScreen
 import com.ptniger.hris.ui.report.ReportScreen
+import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.Constants
 
 @Composable
@@ -99,6 +110,7 @@ fun MainScaffold(
                     "audit_log" -> AuditLogScreen(user = user)
                     "role_management" -> RoleManagementScreen(user = user)
                     "automation" -> AutomationScreen(user = user)
+                    "manage_accounts" -> AccountManagementScreen(user = user, onBack = { onNavigate("dashboard") })
                     "profile" -> ProfileScreen(user = user, onLogout = onLogout)
                     else -> {
                         if (currentRoute.startsWith("employee_form_")) {
@@ -116,9 +128,42 @@ fun MainScaffold(
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
+        // Profile Avatar - Top Right (always visible except on profile/login)
+        if (currentRoute != "profile") {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(end = 18.dp, top = 12.dp),
+                contentAlignment = Alignment.TopEnd
+            ) {
+                Surface(
+                    onClick = { onNavigate("profile") },
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(50),
+                    shadowElevation = 4.dp,
+                    color = Color.Transparent
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Brush.linearGradient(listOf(Blue, Color(0xFF60A5FA)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = (user.fullName.ifEmpty { user.name }).take(2).uppercase(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+        }
+
+        // Bottom Nav Bar
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
             BottomNavBar(
-                role = user.role,
+                roles = user.roles.ifEmpty { listOf(user.role) },
                 currentRoute = currentRoute,
                 onNavigate = onNavigate
             )
@@ -128,7 +173,10 @@ fun MainScaffold(
 
 @Composable
 fun DashboardRouter(user: User, onNavigate: (String) -> Unit) {
-    when (user.role) {
+    val effectiveRole = user.primaryRole.ifEmpty { user.role }.ifEmpty { 
+        user.roles.firstOrNull { it != Constants.Role.EMPLOYEE } ?: Constants.Role.EMPLOYEE 
+    }
+    when (effectiveRole) {
         Constants.Role.HR -> HrDashboardScreen(user = user, onNavigate = onNavigate)
         Constants.Role.FINANCE -> FinanceDashboardScreen(user = user, onNavigate = onNavigate)
         Constants.Role.MANAGER -> ManagerDashboardScreen(user = user, onNavigate = onNavigate)

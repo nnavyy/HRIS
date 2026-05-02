@@ -24,5 +24,6 @@ sealed class Screen(val route: String) {
     object AuditLog : Screen("audit_log")
     object RoleManagement : Screen("role_management")
     object Automation : Screen("automation")
+    object ManageAccounts : Screen("manage_accounts")
     object Profile : Screen("profile")
 }

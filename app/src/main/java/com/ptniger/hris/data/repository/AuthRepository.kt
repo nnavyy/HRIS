@@ -55,24 +55,33 @@ class AuthRepository {
     }
 
     suspend fun createUserByAdmin(context: android.content.Context, email: String, password: String, user: User): Result<String> {
+        var secondaryApp: com.google.firebase.FirebaseApp? = null
+        var createdUser: FirebaseUser? = null
         return try {
             val options = com.google.firebase.FirebaseApp.getInstance().options
-            var secondaryApp = com.google.firebase.FirebaseApp.getApps(context).find { it.name == "secondaryApp" }
+            secondaryApp = com.google.firebase.FirebaseApp.getApps(context).find { it.name == "secondaryApp" }
             if (secondaryApp == null) {
                 secondaryApp = com.google.firebase.FirebaseApp.initializeApp(context, options, "secondaryApp")
             }
             val secondaryAuth = com.google.firebase.auth.FirebaseAuth.getInstance(secondaryApp!!)
 
             val result = secondaryAuth.createUserWithEmailAndPassword(email, password).await()
-            val uid = result.user?.uid ?: throw Exception("Gagal buat akun")
-            
-            secondaryApp.delete()
+            createdUser = result.user
+            val uid = createdUser?.uid ?: throw Exception("Gagal buat akun")
 
-            val userData = user.copy(userId = uid)
-            db.collection(Constants.Collections.USERS).document(uid).set(userData).await()
-            Result.success(uid)
+            try {
+                val userData = user.copy(userId = uid, uid = uid)
+                db.collection(Constants.Collections.USERS).document(uid).set(userData).await()
+                Result.success(uid)
+            } catch (firestoreError: Exception) {
+                // Rollback auth user if firestore fails
+                createdUser?.delete()?.await()
+                throw Exception("Gagal menyimpan data user: ${firestoreError.message}")
+            }
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            secondaryApp?.delete()
         }
     }
 

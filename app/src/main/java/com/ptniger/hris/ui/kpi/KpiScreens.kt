@@ -31,7 +31,7 @@ fun KpiConfigScreen(user: User, vm: KpiViewModel = viewModel()) {
     val message by vm.message.collectAsState()
     LaunchedEffect(Unit) { vm.loadConfigs() }
 
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Text("KPI Configuration", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -76,7 +76,7 @@ fun KpiScoringScreen(user: User, vm: KpiViewModel = viewModel()) {
     val message by vm.message.collectAsState()
     LaunchedEffect(Unit) { vm.loadEmployees(); vm.loadConfigs() }
 
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Text("Penilaian KPI", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -116,7 +116,7 @@ fun KpiResultScreen(user: User, vm: KpiViewModel = viewModel()) {
     val totalScore by vm.totalScore.collectAsState()
     LaunchedEffect(Unit) { vm.loadScores(user.employeeId) }
 
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Text("Hasil KPI Saya", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

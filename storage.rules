@@ -21,15 +21,15 @@ service firebase.storage {
       return request.auth != null && getUserRole() == 'manager';
     }
 
-    match /attendance_selfies/{employeeId}/{fileName} {
+    match /attendance_selfies/{authUid}/{fileName} {
       // Employees can upload their own selfies.
-      allow create: if request.auth != null && request.auth.uid == employeeId
+      allow create: if request.auth != null && request.auth.uid == authUid
                     && request.resource.size < 5 * 1024 * 1024 // max 5MB
                     && request.resource.contentType.matches('image/.*');
       
       // Only the employee, HR, Manager, or Superadmin can read the selfie.
       allow read: if request.auth != null && (
-        request.auth.uid == employeeId || 
+        request.auth.uid == authUid || 
         isSuperAdmin() || 
         isHR() || 
         isManager()

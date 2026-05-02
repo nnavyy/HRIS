@@ -6,11 +6,11 @@ data class Employee(
     val name: String = "",
     val email: String = "",
     val phone: String = "",
-    val role: String = "", // <-- Ditambahkan untuk filter berdasar role
     val position: String = "",
     val department: String = "",
     val branch: String = "",
     val officeId: String = "", // Added for Geofencing Location binding
+    val managerId: String = "", // Added for Payroll workflow
     val joinDate: String = "",
     val employmentStatus: String = "active",
     val baseSalary: Double = 0.0,

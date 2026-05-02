@@ -28,7 +28,7 @@ fun PayrollScreen(user: User, vm: PayrollViewModel = viewModel()) {
     val message by vm.message.collectAsState()
     LaunchedEffect(Unit) { vm.loadAll() }
 
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Text("Payroll", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -62,7 +62,7 @@ fun SalarySlipScreen(user: User, vm: PayrollViewModel = viewModel()) {
     val payrolls by vm.payrolls.collectAsState()
     LaunchedEffect(Unit) { vm.loadByEmployee(user.employeeId) }
 
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Text("Slip Gaji", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
         if (payrolls.isEmpty()) Text("Belum ada slip gaji", Modifier.padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         payrolls.forEach { p ->

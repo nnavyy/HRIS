@@ -59,7 +59,7 @@ class AttendanceViewModel : ViewModel() {
                 val att = Attendance(
                     employeeId = employee.employeeId,
                     date = DateUtils.today(),
-                    type = type,
+                    clockType = type,
                     checkIn = if (type == Constants.AttendanceType.CLOCK_IN) time else "",
                     checkOut = if (type == Constants.AttendanceType.CLOCK_OUT) time else "",
                     lateMinutes = lateMinutes,
@@ -82,10 +82,10 @@ class AttendanceViewModel : ViewModel() {
                         action = "ATTENDANCE_SUBMITTED",
                         targetCollection = Constants.Collections.ATTENDANCE,
                         targetId = attId,
-                        details = "$type submitted. Status: ${savedAtt?.status ?: "Unknown"}. Distance: ${savedAtt?.distanceFromOfficeMeters}m"
+                        details = "$type submitted. Status: ${savedAtt?.validationStatus ?: "Unknown"}. Distance: ${savedAtt?.distanceFromOfficeMeters}m"
                     )
                     
-                    _message.value = "Attendance submitted successfully! Status: ${savedAtt?.status}"
+                    _message.value = "Attendance submitted successfully! Status: ${savedAtt?.validationStatus}"
                 }.onFailure {
                     _message.value = "Failed to submit attendance: ${it.message}"
                 }

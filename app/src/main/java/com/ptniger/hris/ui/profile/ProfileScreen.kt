@@ -25,7 +25,7 @@ fun ProfileScreen(user: User, onLogout: () -> Unit) {
     val color = when (user.role) { "hr" -> Blue; "finance" -> Orange; "manager" -> Teal; "super_admin" -> Purple; else -> Pink }
     val bg = when (user.role) { "hr" -> BlueSoft; "finance" -> OrangeSoft; "manager" -> TealSoft; "super_admin" -> PurpleSoft; else -> PinkSoft }
 
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Text("Profil", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
 
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {

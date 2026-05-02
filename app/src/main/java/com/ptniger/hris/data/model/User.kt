@@ -2,13 +2,19 @@ package com.ptniger.hris.data.model
 
 data class User(
     val userId: String = "",
+    val uid: String = "",
     val name: String = "",
+    val fullName: String = "",
     val email: String = "",
-    val role: String = "",
+    val role: String = "", // Legacy support
+    val roles: List<String> = emptyList(),
+    val primaryRole: String = "",
     val employeeId: String = "",
+    val nik: String = "",
     val departmentId: String = "",
     val branch: String = "",
-    val officeId: String = "", // Added for Geofencing Location binding
-    val status: String = "active",
+    val officeId: String = "",
+    val status: String = "active", // Legacy support
+    val isActive: Boolean = true,
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "hris-placeholder",
-    "storage_bucket": "hris-placeholder.appspot.com"
+    "project_number": "54796265465",
+    "project_id": "ptniger",
+    "storage_bucket": "ptniger.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:54796265465:android:a360dea23cc0ce42b87f28",
         "android_client_info": {
           "package_name": "com.ptniger.hris"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyPlaceholder_REPLACE_WITH_REAL_KEY"
+          "current_key": "AIzaSyCjOlkVNHbtAoQ04PekFAcKuF1baJh7xWo"
         }
       ],
       "services": {

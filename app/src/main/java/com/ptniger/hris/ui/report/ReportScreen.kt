@@ -20,7 +20,7 @@ import com.ptniger.hris.ui.theme.*
 
 @Composable
 fun ReportScreen(user: User) {
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Text("Laporan", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
         ReportItem(Icons.Default.Description, "Laporan Absensi", "Rekap hadir, telat, izin, alpha", "PDF", BlueSoft, Blue)
         ReportItem(Icons.Default.Payments, "Laporan Payroll", "Payroll, tunjangan, potongan", "Excel", GreenSoft, Green)

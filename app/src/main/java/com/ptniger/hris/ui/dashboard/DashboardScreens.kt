@@ -37,6 +37,11 @@ fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardVie
             MetricCard(Modifier.weight(1f), "Hadir Hari Ini", "${s.presentToday}", "Kehadiran", Icons.Default.CheckCircle, GreenSoft, Green)
             MetricCard(Modifier.weight(1f), "KPI Config", "Aktif", "Kelola KPI", Icons.Default.Star, PurpleSoft, Purple)
         }
+        Spacer(Modifier.height(16.dp))
+        // Quick Actions
+        QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
         Spacer(Modifier.height(100.dp))
     }
 }
@@ -58,6 +63,8 @@ fun FinanceDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
             MetricCard(Modifier.weight(1f), "Potongan", "BPJS+PPh", "Kalkulasi", Icons.Default.Remove, RedSoft, Red)
             MetricCard(Modifier.weight(1f), "KPI Bonus", "Aktif", "Terhitung otomatis", Icons.Default.TrendingUp, GreenSoft, Green)
         }
+        Spacer(Modifier.height(16.dp))
+        QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
         Spacer(Modifier.height(100.dp))
     }
 }
@@ -74,6 +81,11 @@ fun ManagerDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
             MetricCard(Modifier.weight(1f), "Anggota Tim", "${s.totalEmployees}", "Divisi Anda", Icons.Default.People, TealSoft, Teal)
             MetricCard(Modifier.weight(1f), "Cuti Pending", "${s.pendingApprovals}", "Perlu review", Icons.Default.CalendarMonth, OrangeSoft, Orange)
         }
+        Spacer(Modifier.height(16.dp))
+        // Quick Actions moved from navbar
+        QuickActionButton("Approval Cuti Bawahan", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Monitor Absensi Tim", Icons.Default.AccessTime, TealSoft, Teal) { onNavigate("attendance_monitor") }
         Spacer(Modifier.height(100.dp))
     }
 }
@@ -95,6 +107,20 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
             MetricCard(Modifier.weight(1f), "Automation", "${s.automationRules}", "Rules aktif", Icons.Default.Settings, TealSoft, Teal)
             MetricCard(Modifier.weight(1f), "Audit Events", "${s.auditEvents}", "Bulan ini", Icons.Default.FindInPage, RedSoft, Red)
         }
+        Spacer(Modifier.height(20.dp))
+        // Quick Actions
+        Button(
+            onClick = { onNavigate("manage_accounts") },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Blue)
+        ) {
+            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Tambah Akun Baru", style = MaterialTheme.typography.titleSmall)
+        }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
         Spacer(Modifier.height(100.dp))
     }
 }
@@ -105,7 +131,7 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
     val s by vm.state.collectAsState()
 
     DashboardLayout(title = "Dashboard", subtitle = "HRIS Portal · Karyawan", user = user) {
-        HeroCard("Halo, ${user.name}", "Akses absensi, pengajuan cuti, slip gaji, dan profil lewat Employee Self Service.", "ESS")
+        HeroCard("Halo, ${user.fullName.ifEmpty { user.name }}", "Akses absensi, pengajuan cuti, slip gaji, dan profil lewat Employee Self Service.", "ESS")
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricCard(Modifier.weight(1f), "Status Hari Ini", if (s.checkInTime.isNotEmpty()) "Hadir" else "Belum", s.checkInTime.ifEmpty { "Check-in" }, Icons.Default.AccessTime, GreenSoft, Green)
@@ -124,23 +150,16 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
 
 @Composable
 fun DashboardLayout(title: String, subtitle: String, user: User, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(Background)) {
-        // Top bar
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
+        // Top bar — avatar is now in MainScaffold overlay, so just show title here
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 12.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                 Spacer(Modifier.height(2.dp))
                 Text(title, style = MaterialTheme.typography.headlineMedium)
-            }
-            Box(
-                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(50))
-                    .background(Brush.linearGradient(listOf(Blue, Color(0xFF60A5FA)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(com.ptniger.hris.utils.RoleManager.getRoleShort(user.role), color = Color.White, style = MaterialTheme.typography.labelMedium)
             }
         }
 
@@ -156,7 +175,6 @@ fun HeroCard(title: String, desc: String, badge: String) {
     Surface(
         shape = RoundedCornerShape(28.dp),
         color = Color(0xFFEFF6FF),
-        border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(Color(0xFFDBEAFE), Color(0xFFDBEAFE)))),
         shadowElevation = 2.dp
     ) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -189,6 +207,35 @@ fun MetricCard(modifier: Modifier = Modifier, label: String, value: String, note
             }
             Spacer(Modifier.height(4.dp))
             Text(note, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+        }
+    }
+}
+
+/**
+ * Quick Action button — used on dashboard to access features removed from navbar.
+ */
+@Composable
+fun QuickActionButton(label: String, icon: ImageVector, bgColor: Color, fgColor: Color, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Surface,
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(bgColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = fgColor, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            Icon(Icons.Default.ChevronRight, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
         }
     }
 }

@@ -16,6 +16,10 @@ data class Payroll(
     val status: String = "draft",
     val generatedAt: Long = System.currentTimeMillis(),
     
+    // Authorization Context
+    val managerId: String = "",
+    val departmentId: String = "",
+    
     // Approval Workflow Fields
     val requestedByFinanceId: String = "",
     val requestedAt: Long = 0,

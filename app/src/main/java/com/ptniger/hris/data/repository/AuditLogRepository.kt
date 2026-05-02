@@ -13,11 +13,37 @@ class AuditLogRepository {
     private val ruleCol = db.collection(Constants.Collections.AUTOMATION_RULES)
 
     // Audit Logs
-    suspend fun log(userId: String, userName: String, action: String,
-                    targetCollection: String, targetId: String, details: String): Result<String> {
+    suspend fun log(
+        userId: String, 
+        userName: String, 
+        action: String,
+        targetCollection: String, 
+        targetId: String, 
+        details: String,
+        actorRole: String = "",
+        module: String = "",
+        targetUserId: String = "",
+        oldValue: String = "",
+        newValue: String = "",
+        ipAddress: String = "",
+        deviceInfo: String = ""
+    ): Result<String> {
         return try {
-            val entry = AuditLog(userId = userId, userName = userName, action = action,
-                targetCollection = targetCollection, targetId = targetId, details = details)
+            val entry = AuditLog(
+                userId = userId, 
+                userName = userName, 
+                actorRole = actorRole,
+                action = action,
+                module = module,
+                targetCollection = targetCollection, 
+                targetId = targetId, 
+                targetUserId = targetUserId,
+                oldValue = oldValue,
+                newValue = newValue,
+                details = details,
+                ipAddress = ipAddress,
+                deviceInfo = deviceInfo
+            )
             val ref = logCol.add(entry).await()
             Result.success(ref.id)
         } catch (e: Exception) { Result.failure(e) }

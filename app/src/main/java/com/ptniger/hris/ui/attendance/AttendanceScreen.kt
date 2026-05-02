@@ -17,15 +17,23 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ptniger.hris.data.model.User
 import com.ptniger.hris.ui.theme.*
+import com.ptniger.hris.utils.DateUtils
 
 @Composable
 fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
-    LaunchedEffect(Unit) { vm.loadTodayAttendance(user.employeeId) }
+    val empId = user.employeeId.ifEmpty { user.userId }
+    LaunchedEffect(Unit) { vm.loadTodayAttendance(empId) }
     val state by vm.state.collectAsState()
 
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
+        // Header with current date
+        Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp)) {
             Text("Absensi", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                "${DateUtils.formatDate(DateUtils.today())} · ${DateUtils.nowTime()}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
         }
 
         // Today status card
@@ -59,7 +67,7 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
         // Check-in / Check-out buttons
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
-                onClick = { vm.checkIn(user.employeeId, "Kantor Pusat") },
+                onClick = { vm.simpleCheckIn(empId) },
                 modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Green),
                 enabled = !state.hasCheckedIn && !state.isLoading
@@ -69,7 +77,7 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
                 Text("Check-in")
             }
             Button(
-                onClick = { vm.checkOut() },
+                onClick = { vm.simpleCheckOut(state.attendanceId, empId) },
                 modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Blue),
                 enabled = state.hasCheckedIn && state.checkOutTime.isEmpty() && !state.isLoading
@@ -126,18 +134,18 @@ fun AttendanceMonitorScreen(user: User, vm: AttendanceViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadAllToday() }
     val state by vm.state.collectAsState()
 
-    Column(Modifier.fillMaxSize().background(Background).verticalScroll(rememberScrollState())) {
-        Text("Monitoring Absensi", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
+        Text("Monitoring Absensi", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
         state.todayList.forEach { att ->
             Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp), shape = RoundedCornerShape(18.dp), color = Surface, shadowElevation = 1.dp) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(if (att.status == "late") OrangeSoft else GreenSoft), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, null, tint = if (att.status == "late") Orange else Green, modifier = Modifier.size(18.dp))
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(if (att.attendanceStatus == "late") OrangeSoft else GreenSoft), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Person, null, tint = if (att.attendanceStatus == "late") Orange else Green, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(att.employeeId, style = MaterialTheme.typography.titleSmall)
-                        Text("Check-in: ${att.checkIn} · ${att.status}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        Text("Check-in: ${att.checkIn} · ${att.attendanceStatus}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     }
                 }
             }
