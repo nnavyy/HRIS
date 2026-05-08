@@ -73,4 +73,11 @@ class EmployeeRepository {
     suspend fun getCount(): Int {
         return try { col.get().await().size() } catch (e: Exception) { 0 }
     }
+
+    suspend fun updateLeaveQuota(id: String, newQuota: Int): Result<Unit> {
+        return try {
+            col.document(id).update("leaveQuota", newQuota).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
 }
