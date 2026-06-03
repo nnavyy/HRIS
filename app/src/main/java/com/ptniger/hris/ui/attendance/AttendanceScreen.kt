@@ -18,6 +18,23 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ptniger.hris.data.model.User
 import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.DateUtils
+import com.ptniger.hris.utils.Constants
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Looper
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import java.io.File
 
 @Composable
 fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
@@ -64,10 +81,63 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
 
         Spacer(Modifier.height(16.dp))
 
+        // Camera & Location Setup
+        val context = LocalContext.current
+        var imageUri by remember { mutableStateOf<Uri?>(null) }
+        var locationCoords by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+        var currentClockType by remember { mutableStateOf("") }
+        
+        val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+        
+        val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success && imageUri != null && locationCoords != null) {
+                vm.submitAttendance(empId, imageUri!!, locationCoords!!.first, locationCoords!!.second, currentClockType)
+            } else {
+                vm.clearMessage() // or show error
+            }
+        }
+
+        val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            val fineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+            val coarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+            val camera = permissions[Manifest.permission.CAMERA] ?: false
+            
+            if ((fineLocation || coarseLocation) && camera) {
+                // Get Location
+                val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).setMaxUpdates(1).build()
+                try {
+                    fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
+                        override fun onLocationResult(locationResult: LocationResult) {
+                            val loc = locationResult.lastLocation
+                            if (loc != null) {
+                                locationCoords = Pair(loc.latitude, loc.longitude)
+                                // Create temp file for photo
+                                val photoFile = File(context.cacheDir, "attendance_${System.currentTimeMillis()}.jpg")
+                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
+                                imageUri = uri
+                                cameraLauncher.launch(uri)
+                            }
+                        }
+                    }, Looper.getMainLooper())
+                } catch (e: SecurityException) {
+                    // Handle missing permissions
+                }
+            }
+        }
+
+        fun launchAttendanceSequence(clockType: String) {
+            currentClockType = clockType
+            locationLauncher.launch(arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.CAMERA
+            ))
+        }
+
         // Check-in / Check-out buttons
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
-                onClick = { vm.simpleCheckIn(empId) },
+                onClick = { launchAttendanceSequence(Constants.AttendanceType.CLOCK_IN) },
                 modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Green),
                 enabled = !state.hasCheckedIn && !state.isLoading
@@ -77,7 +147,7 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
                 Text("Check-in")
             }
             Button(
-                onClick = { vm.simpleCheckOut(state.attendanceId, empId) },
+                onClick = { launchAttendanceSequence(Constants.AttendanceType.CLOCK_OUT) },
                 modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Blue),
                 enabled = state.hasCheckedIn && state.checkOutTime.isEmpty() && !state.isLoading
@@ -135,17 +205,104 @@ fun AttendanceMonitorScreen(user: User, vm: AttendanceViewModel = viewModel()) {
     val state by vm.state.collectAsState()
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Monitoring Absensi", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
-        state.todayList.forEach { att ->
-            Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp), shape = RoundedCornerShape(18.dp), color = Surface, shadowElevation = 1.dp) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(if (att.attendanceStatus == "late") OrangeSoft else GreenSoft), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, null, tint = if (att.attendanceStatus == "late") Orange else Green, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(att.employeeId, style = MaterialTheme.typography.titleSmall)
-                        Text("Check-in: ${att.checkIn} · ${att.attendanceStatus}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Row(
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Monitoring Absensi", style = MaterialTheme.typography.headlineMedium)
+            if (state.todayList.isNotEmpty()) {
+                Surface(shape = RoundedCornerShape(999.dp), color = com.ptniger.hris.ui.theme.GreenSoft) {
+                    Text(
+                        "${state.todayList.size} Hadir",
+                        Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = com.ptniger.hris.ui.theme.Green
+                    )
+                }
+            }
+        }
+
+        if (state.isLoading) {
+            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = com.ptniger.hris.ui.theme.Blue)
+            }
+        } else if (state.todayList.isEmpty()) {
+            // Empty state
+            Box(
+                Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.AccessTime,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = com.ptniger.hris.ui.theme.TextMuted
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Belum ada absensi hari ini",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = com.ptniger.hris.ui.theme.TextSecondary
+                    )
+                    Text(
+                        "Daftar akan muncul setelah karyawan melakukan check-in",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = com.ptniger.hris.ui.theme.TextMuted
+                    )
+                }
+            }
+        } else {
+            state.todayList.forEach { att ->
+                val isLate = att.attendanceStatus == "late"
+                Surface(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = com.ptniger.hris.ui.theme.Surface,
+                    shadowElevation = 1.dp
+                ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
+                                .background(if (isLate) com.ptniger.hris.ui.theme.OrangeSoft else com.ptniger.hris.ui.theme.GreenSoft),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Show initials from employeeId (first 2 chars) as avatar placeholder
+                            Text(
+                                att.employeeId.take(2).uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isLate) com.ptniger.hris.ui.theme.Orange else com.ptniger.hris.ui.theme.Green
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            // Display employeeId more cleanly — name would require an extra Firestore call
+                            Text(
+                                "ID: ${att.employeeId}",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                "Check-in: ${att.checkIn}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = com.ptniger.hris.ui.theme.TextSecondary
+                            )
+                            if (att.checkOut.isNotEmpty()) {
+                                Text(
+                                    "Check-out: ${att.checkOut}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = com.ptniger.hris.ui.theme.TextSecondary
+                                )
+                            }
+                        }
+                        Surface(shape = RoundedCornerShape(999.dp), color = if (isLate) com.ptniger.hris.ui.theme.OrangeSoft else com.ptniger.hris.ui.theme.GreenSoft) {
+                            Text(
+                                if (isLate) "Terlambat" else "Tepat Waktu",
+                                Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isLate) com.ptniger.hris.ui.theme.Orange else com.ptniger.hris.ui.theme.Green
+                            )
+                        }
                     }
                 }
             }

@@ -45,55 +45,51 @@ class AttendanceViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Simple check-in without selfie/GPS (for MVP testing).
-     * In production, use submitAttendance() with selfie + GPS from the UI.
-     */
-    fun simpleCheckIn(employeeId: String) {
+    fun submitAttendance(
+        employeeId: String,
+        imageUri: android.net.Uri,
+        latitude: Double,
+        longitude: Double,
+        clockType: String
+    ) {
         if (employeeId.isEmpty()) {
             _state.value = _state.value.copy(message = "Employee ID belum terhubung")
             return
         }
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
+            _state.value = _state.value.copy(isLoading = true, message = "Memproses absensi...")
             try {
+                val officeRepo = com.ptniger.hris.data.repository.OfficeLocationRepository()
+                val activeOffices = officeRepo.getActiveLocations()
+                val office = activeOffices.firstOrNull()
+
                 val now = DateUtils.nowTime()
-                val isLate = DateUtils.isLate(now)
+                
+                // If it's a check-out, we actually need to get the existing attendance ID, 
+                // but submitAttendance in repository creates a new record.
+                // For MVP, submitAttendance creates a new record for both check-in and check-out.
+                // We will handle logic accordingly.
                 val attendance = Attendance(
                     employeeId = employeeId,
                     date = DateUtils.today(),
-                    clockType = Constants.AttendanceType.CLOCK_IN,
-                    checkIn = now,
-                    attendanceStatus = if (isLate) Constants.AttendanceStatus.LATE else Constants.AttendanceStatus.PRESENT,
-                    validationStatus = Constants.AttendanceStatus.VALID,
-                    lateMinutes = if (isLate) DateUtils.calculateLateMinutes(now) else 0
+                    clockType = clockType,
+                    checkIn = if (clockType == Constants.AttendanceType.CLOCK_IN) now else "",
+                    checkOut = if (clockType == Constants.AttendanceType.CLOCK_OUT) now else "",
+                    latitude = latitude,
+                    longitude = longitude
                 )
-                // Write directly to Firestore (bypassing selfie requirement for MVP)
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                val ref = db.collection(com.ptniger.hris.utils.Constants.Collections.ATTENDANCE).add(attendance).await()
-                _state.value = _state.value.copy(message = "Check-in berhasil!", isLoading = false)
-                loadTodayAttendance(employeeId)
+
+                repo.submitAttendance(attendance, imageUri, office).fold(
+                    onSuccess = {
+                        _state.value = _state.value.copy(message = "Absensi berhasil!", isLoading = false)
+                        loadTodayAttendance(employeeId)
+                    },
+                    onFailure = {
+                        _state.value = _state.value.copy(message = "Gagal: ${it.message}", isLoading = false)
+                    }
+                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(message = "Error: ${e.message}", isLoading = false)
-            }
-        }
-    }
-
-    /**
-     * Simple check-out for MVP testing.
-     */
-    fun simpleCheckOut(attendanceId: String, employeeId: String) {
-        if (attendanceId.isEmpty()) return
-        viewModelScope.launch {
-            try {
-                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                db.collection(com.ptniger.hris.utils.Constants.Collections.ATTENDANCE)
-                    .document(attendanceId)
-                    .update("checkOut", DateUtils.nowTime())
-                    .await()
-                _state.value = _state.value.copy(checkOutTime = DateUtils.nowTime(), message = "Check-out berhasil!")
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(message = "Error: ${e.message}")
             }
         }
     }

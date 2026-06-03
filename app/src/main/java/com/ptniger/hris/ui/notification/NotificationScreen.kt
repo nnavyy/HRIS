@@ -28,8 +28,8 @@ fun NotificationScreen(user: User) {
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { notifications = repo.getByUser(user.userId) }
 
-    Column(Modifier.fillMaxSize().background(Background)) {
-        Text("Notifikasi", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
+        Text("Notifikasi", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
         LazyColumn(contentPadding = PaddingValues(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(notifications) { notif ->
                 Surface(

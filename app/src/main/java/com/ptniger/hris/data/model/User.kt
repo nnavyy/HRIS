@@ -16,5 +16,6 @@ data class User(
     val officeId: String = "",
     val status: String = "active", // Legacy support
     val isActive: Boolean = true,
+    val photoUrl: String = "",
     val createdAt: Long = System.currentTimeMillis()
 )

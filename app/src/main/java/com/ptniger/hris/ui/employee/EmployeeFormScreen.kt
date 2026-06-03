@@ -6,7 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -45,9 +45,9 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
 
     LaunchedEffect(message) { if (message != null) { kotlinx.coroutines.delay(1500); vm.clearMessage(); if (message?.contains("berhasil") == true) onBack() } }
 
-    Column(Modifier.fillMaxSize().background(Background)) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
             Text(if (isNew) "Tambah Karyawan" else "Edit Karyawan", style = MaterialTheme.typography.headlineMedium)
         }
 

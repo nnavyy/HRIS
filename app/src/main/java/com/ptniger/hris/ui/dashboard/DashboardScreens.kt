@@ -85,6 +85,8 @@ fun ManagerDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
         // Quick Actions moved from navbar
         QuickActionButton("Approval Cuti Bawahan", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
         Spacer(Modifier.height(8.dp))
+        QuickActionButton("Approval Payroll", Icons.Default.Payments, BlueSoft, Blue) { onNavigate("payroll_approval") }
+        Spacer(Modifier.height(8.dp))
         QuickActionButton("Monitor Absensi Tim", Icons.Default.AccessTime, TealSoft, Teal) { onNavigate("attendance_monitor") }
         Spacer(Modifier.height(100.dp))
     }
@@ -120,6 +122,8 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
             Text("Tambah Akun Baru", style = MaterialTheme.typography.titleSmall)
         }
         Spacer(Modifier.height(8.dp))
+        QuickActionButton("Lokasi Kantor (GPS Absensi)", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
+        Spacer(Modifier.height(8.dp))
         QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
         Spacer(Modifier.height(100.dp))
     }
@@ -142,6 +146,17 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
             MetricCard(Modifier.weight(1f), "Skor KPI", String.format("%.1f", s.kpiScore), com.ptniger.hris.utils.KpiCalculator.getBonusLabel(s.kpiScore), Icons.Default.Star, PurpleSoft, Purple)
             MetricCard(Modifier.weight(1f), "Notifikasi", "${s.unreadNotifications}", "Belum dibaca", Icons.Default.Notifications, OrangeSoft, Orange)
         }
+        Spacer(Modifier.height(16.dp))
+        // Quick Actions for Employee Self Service
+        Text("Akses Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Absensi Harian", Icons.Default.AccessTime, GreenSoft, Green) { onNavigate("attendance") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Pengajuan Cuti", Icons.Default.CalendarMonth, BlueSoft, Blue) { onNavigate("leave") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Slip Gaji", Icons.Default.Payments, OrangeSoft, Orange) { onNavigate("salary_slip") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Hasil KPI Saya", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_result") }
         Spacer(Modifier.height(100.dp))
     }
 }

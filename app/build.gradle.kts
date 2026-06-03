@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
 }
@@ -12,8 +13,9 @@ android {
         applicationId = "com.ptniger.hris"
         minSdk = 24
         targetSdk = 36
+        multiDexEnabled = true
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -31,12 +33,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
     buildFeatures {
         compose = true
     }
 }
 
 dependencies {
+    // MultiDex support
+    implementation("androidx.multidex:multidex:2.0.1")
+
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-analytics")
@@ -64,6 +72,17 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-extended")
 
+    // Location
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // Coil for async image loading (profile photos from Firebase Storage)
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // CameraX
+    val camerax_version = "1.3.4"
+    implementation("androidx.camera:camera-camera2:${camerax_version}")
+    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
+    implementation("androidx.camera:camera-view:${camerax_version}")
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

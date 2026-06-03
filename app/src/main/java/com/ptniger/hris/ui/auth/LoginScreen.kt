@@ -141,7 +141,7 @@ fun LoginScreen(
                 Text("Email / NIK", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
-                    value = email, onValueChange = { email = it },
+                    value = email, onValueChange = { email = it.trim() },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     singleLine = true,
@@ -171,13 +171,26 @@ fun LoginScreen(
 
                 if (uiState.error != null) {
                     Spacer(Modifier.height(8.dp))
-                    Text(uiState.error!!, color = Red, style = MaterialTheme.typography.bodySmall)
+                    val errorMsg = when {
+                        uiState.error!!.contains("credential", ignoreCase = true) ||
+                        uiState.error!!.contains("malformed", ignoreCase = true) ||
+                        uiState.error!!.contains("invalid", ignoreCase = true) ->
+                            "Email atau password salah. Pastikan email dan password yang dimasukkan benar."
+                        uiState.error!!.contains("network", ignoreCase = true) ||
+                        uiState.error!!.contains("connection", ignoreCase = true) ->
+                            "Tidak ada koneksi internet. Periksa jaringan kamu."
+                        uiState.error!!.contains("too-many-requests", ignoreCase = true) ||
+                        uiState.error!!.contains("blocked", ignoreCase = true) ->
+                            "Terlalu banyak percobaan login. Coba lagi beberapa menit."
+                        else -> uiState.error!!
+                    }
+                    Text(errorMsg, color = Red, style = MaterialTheme.typography.bodySmall)
                 }
 
                 Spacer(Modifier.height(16.dp))
 
                 Button(
-                    onClick = { viewModel.login(email, password) },
+                    onClick = { viewModel.login(email.trim(), password) },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Blue),

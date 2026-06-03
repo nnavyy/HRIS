@@ -19,6 +19,7 @@ import com.ptniger.hris.data.model.User
 import com.ptniger.hris.ui.admin.AccountManagementScreen
 import com.ptniger.hris.ui.admin.AutomationScreen
 import com.ptniger.hris.ui.admin.RoleManagementScreen
+import com.ptniger.hris.ui.admin.OfficeLocationScreen
 import com.ptniger.hris.ui.attendance.AttendanceMonitorScreen
 import com.ptniger.hris.ui.attendance.AttendanceScreen
 import com.ptniger.hris.ui.audit.AuditLogScreen
@@ -33,6 +34,7 @@ import com.ptniger.hris.ui.leave.LeaveApprovalScreen
 import com.ptniger.hris.ui.leave.LeaveRequestScreen
 import com.ptniger.hris.ui.notification.NotificationScreen
 import com.ptniger.hris.ui.payroll.PayrollScreen
+import com.ptniger.hris.ui.payroll.PayrollApprovalScreen
 import com.ptniger.hris.ui.payroll.SalarySlipScreen
 import com.ptniger.hris.ui.profile.ProfileScreen
 import com.ptniger.hris.ui.report.ReportScreen
@@ -104,12 +106,14 @@ fun MainScaffold(
                     "kpi_scoring" -> KpiScoringScreen(user = user)
                     "kpi_result" -> KpiResultScreen(user = user)
                     "payroll" -> PayrollScreen(user = user)
+                    "payroll_approval" -> PayrollApprovalScreen(user = user)
                     "salary_slip" -> SalarySlipScreen(user = user)
                     "report" -> ReportScreen(user = user)
                     "notifications" -> NotificationScreen(user = user)
                     "audit_log" -> AuditLogScreen(user = user)
                     "role_management" -> RoleManagementScreen(user = user)
                     "automation" -> AutomationScreen(user = user)
+                    "office_locations" -> OfficeLocationScreen(user = user, onBack = { onNavigate("dashboard") })
                     "manage_accounts" -> AccountManagementScreen(user = user, onBack = { onNavigate("dashboard") })
                     "profile" -> ProfileScreen(user = user, onLogout = onLogout)
                     else -> {

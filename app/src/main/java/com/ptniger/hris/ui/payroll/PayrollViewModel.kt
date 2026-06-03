@@ -27,4 +27,48 @@ class PayrollViewModel : ViewModel() {
             )
         }
     }
+
+    fun requestApproval(payrollId: String, financeId: String) {
+        viewModelScope.launch {
+            repo.requestApproval(payrollId, financeId).fold(
+                onSuccess = { _message.value = "Persetujuan diajukan"; loadAll() },
+                onFailure = { _message.value = "Error: ${it.message}" }
+            )
+        }
+    }
+
+    fun getPendingApprovals(managerId: String) {
+        viewModelScope.launch {
+            _payrolls.value = repo.getPendingApprovals(managerId)
+        }
+    }
+
+    fun processApproval(payrollId: String, managerId: String, isApproved: Boolean, notes: String) {
+        viewModelScope.launch {
+            repo.processApproval(payrollId, managerId, isApproved, notes).fold(
+                onSuccess = { _message.value = if(isApproved) "Disetujui" else "Ditolak"; getPendingApprovals(managerId) },
+                onFailure = { _message.value = "Error: ${it.message}" }
+            )
+        }
+    }
+
+    fun finalizePayroll(payrollId: String, financeId: String) {
+        viewModelScope.launch {
+            repo.finalizePayroll(payrollId, financeId).fold(
+                onSuccess = { _message.value = "Payroll difinalisasi"; loadAll() },
+                onFailure = { _message.value = "Error: ${it.message}" }
+            )
+        }
+    }
+
+    fun markPayrollAsPaid(payrollId: String, financeId: String) {
+        viewModelScope.launch {
+            repo.markPayrollAsPaid(payrollId, financeId).fold(
+                onSuccess = { _message.value = "Payroll ditandai dibayar"; loadAll() },
+                onFailure = { _message.value = "Error: ${it.message}" }
+            )
+        }
+    }
+
+    fun clearMessage() { _message.value = null }
 }

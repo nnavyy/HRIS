@@ -69,6 +69,15 @@ class LeaveRepository {
         } catch (e: Exception) { emptyList() }
     }
 
+    suspend fun getAll(): List<LeaveRequest> {
+        return try {
+            col.orderBy("createdAt", Query.Direction.DESCENDING)
+                .get().await().documents.mapNotNull {
+                    it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
+                }
+        } catch (e: Exception) { emptyList() }
+    }
+
     suspend fun approve(leaveId: String, approvedBy: String): Result<Unit> {
         return try {
             col.document(leaveId).update(

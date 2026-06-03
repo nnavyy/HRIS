@@ -25,8 +25,8 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
     val employees by vm.employees.collectAsState()
     val filtered = employees.filter { it.name.contains(search, true) || it.nik.contains(search, true) || it.department.contains(search, true) }
 
-    Column(Modifier.fillMaxSize().background(Background)) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Data Karyawan", style = MaterialTheme.typography.headlineMedium)
             FloatingActionButton(onClick = { onNavigateToForm("new") }, containerColor = Blue, contentColor = Surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.size(42.dp)) {
                 Icon(Icons.Default.Add, contentDescription = "Tambah", modifier = Modifier.size(20.dp))

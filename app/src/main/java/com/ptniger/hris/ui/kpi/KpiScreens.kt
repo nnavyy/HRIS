@@ -32,7 +32,7 @@ fun KpiConfigScreen(user: User, vm: KpiViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadConfigs() }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("KPI Configuration", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
+        Text("KPI Configuration", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Tambah KPI Baru", style = MaterialTheme.typography.titleMedium)
@@ -77,7 +77,7 @@ fun KpiScoringScreen(user: User, vm: KpiViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadEmployees(); vm.loadConfigs() }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Penilaian KPI", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
+        Text("Penilaian KPI", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Pilih Karyawan", style = MaterialTheme.typography.titleMedium)
@@ -117,7 +117,7 @@ fun KpiResultScreen(user: User, vm: KpiViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadScores(user.employeeId) }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Hasil KPI Saya", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
+        Text("Hasil KPI Saya", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Total Skor KPI", style = MaterialTheme.typography.titleMedium)

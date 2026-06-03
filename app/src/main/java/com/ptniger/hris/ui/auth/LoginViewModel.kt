@@ -45,6 +45,9 @@ class LoginViewModel : ViewModel() {
                     viewModelScope.launch { try { AutomationEngine.refreshRules() } catch (_: Exception) {} }
                 },
                 onFailure = { e ->
+                    // Log error code for debugging
+                    val errorCode = if (e is com.google.firebase.auth.FirebaseAuthException) e.errorCode else e.javaClass.simpleName
+                    android.util.Log.e("LoginViewModel", "Login error code: $errorCode | message: ${e.message}")
                     _uiState.value = _uiState.value.copy(isLoading = false, error = e.message ?: "Login gagal")
                 }
             )

@@ -13,8 +13,44 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ptniger.hris.data.model.User
 import com.ptniger.hris.ui.theme.*
+import com.ptniger.hris.utils.Constants
 import java.text.NumberFormat
 import java.util.Locale
+
+@Composable
+fun PayrollApprovalScreen(user: User, vm: PayrollViewModel = viewModel()) {
+    val payrolls by vm.payrolls.collectAsState()
+    val message by vm.message.collectAsState()
+    LaunchedEffect(Unit) { vm.getPendingApprovals(user.userId) }
+
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
+        Text("Persetujuan Payroll", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        if (message != null) Text(message!!, Modifier.padding(horizontal = 18.dp), color = Green, style = MaterialTheme.typography.bodySmall)
+        
+        if (payrolls.isEmpty()) {
+            Text("Tidak ada payroll menunggu persetujuan", Modifier.padding(18.dp), color = TextSecondary)
+        } else {
+            payrolls.forEach { p ->
+                Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 1.dp) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("${p.employeeName} · ${com.ptniger.hris.utils.DateUtils.formatMonthYear(p.month, p.year)}", style = MaterialTheme.typography.titleMedium)
+                        Text("Net: Rp ${p.netSalary}", style = MaterialTheme.typography.bodyMedium, color = Green)
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { vm.processApproval(p.payrollId, user.userId, true, "OK") }, colors = ButtonDefaults.buttonColors(containerColor = Green), modifier = Modifier.weight(1f)) {
+                                Text("Setujui")
+                            }
+                            Button(onClick = { vm.processApproval(p.payrollId, user.userId, false, "Revisi") }, colors = ButtonDefaults.buttonColors(containerColor = Red), modifier = Modifier.weight(1f)) {
+                                Text("Tolak")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(100.dp))
+    }
+}
 
 @Composable
 fun PayrollScreen(user: User, vm: PayrollViewModel = viewModel()) {
@@ -29,7 +65,7 @@ fun PayrollScreen(user: User, vm: PayrollViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadAll() }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Payroll", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
+        Text("Payroll", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Generate Payroll", style = MaterialTheme.typography.titleMedium)
@@ -51,6 +87,16 @@ fun PayrollScreen(user: User, vm: PayrollViewModel = viewModel()) {
         Spacer(Modifier.height(8.dp))
         payrolls.forEach { p ->
             SlipCard(p.employeeName, p.month, p.year, p.baseSalary, p.allowance, p.overtimePay, p.kpiBonus, p.kpiScore, p.deductions, p.netSalary, p.status)
+            
+            // Finance Action Buttons
+            if (p.status == Constants.PayrollStatus.DRAFT) {
+                Button(onClick = { vm.requestApproval(p.payrollId, user.userId) }, Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp)) { Text("Ajukan Persetujuan") }
+            } else if (p.status == Constants.PayrollStatus.APPROVED) {
+                Button(onClick = { vm.finalizePayroll(p.payrollId, user.userId) }, Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp)) { Text("Finalisasi") }
+            } else if (p.status == Constants.PayrollStatus.FINALIZED) {
+                Button(onClick = { vm.markPayrollAsPaid(p.payrollId, user.userId) }, Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp), colors = ButtonDefaults.buttonColors(containerColor = Green)) { Text("Tandai Sudah Dibayar") }
+            }
+            
             Spacer(Modifier.height(8.dp))
         }
         Spacer(Modifier.height(100.dp))
@@ -60,10 +106,11 @@ fun PayrollScreen(user: User, vm: PayrollViewModel = viewModel()) {
 @Composable
 fun SalarySlipScreen(user: User, vm: PayrollViewModel = viewModel()) {
     val payrolls by vm.payrolls.collectAsState()
-    LaunchedEffect(Unit) { vm.loadByEmployee(user.employeeId) }
+    val empId = user.employeeId.ifEmpty { user.userId }
+    LaunchedEffect(Unit) { vm.loadByEmployee(empId) }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Slip Gaji", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(18.dp))
+        Text("Slip Gaji", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
         if (payrolls.isEmpty()) Text("Belum ada slip gaji", Modifier.padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         payrolls.forEach { p ->
             SlipCard(p.employeeName.ifEmpty { user.name }, p.month, p.year, p.baseSalary, p.allowance, p.overtimePay, p.kpiBonus, p.kpiScore, p.deductions, p.netSalary, p.status)
