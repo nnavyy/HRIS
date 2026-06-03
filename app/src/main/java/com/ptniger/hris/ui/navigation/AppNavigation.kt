@@ -138,14 +138,14 @@ fun MainScaffold(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(end = 18.dp, top = 12.dp),
+                    .padding(end = 16.dp, top = 10.dp),
                 contentAlignment = Alignment.TopEnd
             ) {
                 Surface(
                     onClick = { onNavigate("profile") },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(42.dp),
                     shape = RoundedCornerShape(50),
-                    shadowElevation = 4.dp,
+                    shadowElevation = 6.dp,
                     color = Color.Transparent
                 ) {
                     Box(

@@ -51,12 +51,21 @@ class LeaveRepository {
 
     suspend fun getByEmployee(employeeId: String): List<LeaveRequest> {
         return try {
+            // Try with orderBy first (requires Firestore index)
             col.whereEqualTo("employeeId", employeeId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get().await().documents.mapNotNull {
                     it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
                 }
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) {
+            // Fallback without orderBy if index doesn't exist yet
+            try {
+                col.whereEqualTo("employeeId", employeeId)
+                    .get().await().documents.mapNotNull {
+                        it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
+                    }.sortedByDescending { it.createdAt }
+            } catch (e2: Exception) { emptyList() }
+        }
     }
 
     suspend fun getPending(): List<LeaveRequest> {

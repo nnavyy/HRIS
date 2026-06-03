@@ -97,9 +97,8 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
     LaunchedEffect(Unit) { vm.loadAdminDashboard() }
     val s by vm.state.collectAsState()
 
-    DashboardLayout(title = "Dashboard Admin", subtitle = "HRIS Portal · Super Admin", user = user) {
-        HeroCard("Dashboard Super Admin", "Kelola akun, role, pengaturan sistem, automation rule, dan audit log.", "SA")
-        Spacer(Modifier.height(16.dp))
+    DashboardLayout(title = "Dashboard Super Admin", subtitle = "HRIS Portal · Super Admin", user = user) {
+        Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricCard(Modifier.weight(1f), "Akun Aktif", "${s.totalEmployees + 5}", "Karyawan + admin", Icons.Default.Shield, PurpleSoft, Purple)
             MetricCard(Modifier.weight(1f), "Role Aktif", "5", "HR,FN,MG,SA,KY", Icons.Default.Person, BlueSoft, Blue)

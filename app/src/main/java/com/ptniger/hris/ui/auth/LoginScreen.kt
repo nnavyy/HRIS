@@ -39,9 +39,14 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var selectedRole by remember { mutableStateOf(Constants.Role.HR) }
+    var showForgotPassword by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.loggedInUser) {
         uiState.loggedInUser?.let { onLoginSuccess(it) }
+    }
+
+    if (showForgotPassword) {
+        ForgotPasswordDialog(onDismiss = { showForgotPassword = false })
     }
 
     Column(
@@ -185,6 +190,23 @@ fun LoginScreen(
                         else -> uiState.error!!
                     }
                     Text(errorMsg, color = Red, style = MaterialTheme.typography.bodySmall)
+                }
+
+                // Forgot password link
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = { showForgotPassword = true },
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            "Lupa Password?",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Blue
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(16.dp))

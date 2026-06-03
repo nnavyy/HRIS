@@ -25,7 +25,7 @@ fun AuditLogScreen(user: User) {
     LaunchedEffect(Unit) { logs = repo.getAll() }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 72.dp, top = 14.dp, bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Audit Log", style = MaterialTheme.typography.headlineMedium)
             Surface(shape = RoundedCornerShape(999.dp), color = RedSoft) {
                 Text("Secure", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = Red)

@@ -72,7 +72,7 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp)
+                .padding(start = 18.dp, end = 72.dp, top = 14.dp, bottom = 10.dp)
         ) {
             Text("Pengajuan Cuti", style = MaterialTheme.typography.headlineMedium)
         }
@@ -314,7 +314,7 @@ fun LeaveApprovalScreen(user: User, vm: LeaveViewModel = viewModel()) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp),
+                .padding(start = 18.dp, end = 72.dp, top = 14.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

@@ -25,12 +25,10 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
     val employees by vm.employees.collectAsState()
     val filtered = employees.filter { it.name.contains(search, true) || it.nik.contains(search, true) || it.department.contains(search, true) }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 72.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Data Karyawan", style = MaterialTheme.typography.headlineMedium)
-            FloatingActionButton(onClick = { onNavigateToForm("new") }, containerColor = Blue, contentColor = Surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.size(42.dp)) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah", modifier = Modifier.size(20.dp))
-            }
         }
 
         OutlinedTextField(
@@ -70,4 +68,12 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
             item { Spacer(Modifier.height(100.dp)) }
         }
     }
-}
+    // FAB
+    Box(Modifier.fillMaxSize().padding(end = 18.dp, bottom = 90.dp), contentAlignment = Alignment.BottomEnd) {
+        FloatingActionButton(onClick = { onNavigateToForm("new") }, containerColor = Blue, contentColor = Surface, shape = RoundedCornerShape(16.dp)) {
+            Icon(Icons.Default.Add, contentDescription = "Tambah", modifier = Modifier.size(24.dp))
+        }
+    }
+    } // Box
+} // EmployeeListScreen
+
