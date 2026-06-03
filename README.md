@@ -16,6 +16,18 @@ A native Android application for Human Resource Information System (HRIS) built 
 - [Role-Based Access](#role-based-access)
 - [Firestore Collections](#firestore-collections)
 - [Security Notes](#security-notes)
+- [Legal](#legal)
+
+---
+
+## Legal
+
+This application processes sensitive employee personal data. Prior to deployment or use, all users and administrators must review the applicable legal documents:
+
+- [Privacy Policy](./PRIVACY_POLICY.md) — describes what data is collected, how it is used, retained, and protected, and outlines the rights of data subjects under UU PDP No. 27/2022 and GDPR 2016/679
+- [Terms of Service](./TERMS_OF_SERVICE.md) — defines permitted use, prohibited conduct, role-based access obligations, and the legal framework governing use of the Application
+
+The Application and its operators are subject to the laws of the Republic of Indonesia. Cross-border data processing through Firebase is subject to Google's Data Processing Addendum.
 
 ---
 

@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -20,6 +21,8 @@ import com.ptniger.hris.ui.admin.AccountManagementScreen
 import com.ptniger.hris.ui.admin.AutomationScreen
 import com.ptniger.hris.ui.admin.RoleManagementScreen
 import com.ptniger.hris.ui.admin.OfficeLocationScreen
+import com.ptniger.hris.ui.agreement.AgreementScreen
+import com.ptniger.hris.ui.agreement.hasAgreed
 import com.ptniger.hris.ui.attendance.AttendanceMonitorScreen
 import com.ptniger.hris.ui.attendance.AttendanceScreen
 import com.ptniger.hris.ui.audit.AuditLogScreen
@@ -46,10 +49,23 @@ fun AppNavigation(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Login.route
 ) {
+    val context = LocalContext.current
+    val start = if (hasAgreed(context)) Screen.Login.route else "agreement"
     var currentUser by remember { mutableStateOf<User?>(null) }
     var currentRoute by remember { mutableStateOf("dashboard") }
 
-    NavHost(navController = navController, startDestination = startDestination) {
+    NavHost(navController = navController, startDestination = start) {
+        // Agreement screen — shown only if user has not yet accepted
+        composable("agreement") {
+            AgreementScreen(
+                onAgreed = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo("agreement") { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(Screen.Login.route) {
             LoginScreen(
                 onLoginSuccess = { user ->
