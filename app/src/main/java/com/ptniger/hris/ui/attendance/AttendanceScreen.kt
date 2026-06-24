@@ -47,7 +47,7 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
         Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp)) {
             Text("Absensi", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "${DateUtils.formatDate(DateUtils.today())} · ${DateUtils.nowTime()}",
+                "${DateUtils.formatDate(DateUtils.today())} ?? ${DateUtils.nowTime()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
             )
@@ -86,52 +86,91 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
         var imageUri by remember { mutableStateOf<Uri?>(null) }
         var locationCoords by remember { mutableStateOf<Pair<Double, Double>?>(null) }
         var currentClockType by remember { mutableStateOf("") }
-        
+
         val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-        
+
         val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             if (success && imageUri != null && locationCoords != null) {
                 vm.submitAttendance(empId, imageUri!!, locationCoords!!.first, locationCoords!!.second, currentClockType)
             } else {
-                vm.clearMessage() // or show error
+                vm.clearMessage()
             }
         }
 
-        val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        // Helper: buat file foto di selfies/ agar sesuai file_paths.xml FileProvider config
+        fun createPhotoFile(ctx: Context): File {
+            val selfiesDir = File(ctx.cacheDir, "selfies").also { it.mkdirs() }
+            return File(selfiesDir, "attendance_${System.currentTimeMillis()}.jpg")
+        }
+
+        // Helper: launch kamera setelah lokasi didapat
+        fun launchCameraWithLocation() {
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                .setMaxUpdates(1)
+                .build()
+            try {
+                fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
+                    override fun onLocationResult(locationResult: LocationResult) {
+                        val loc = locationResult.lastLocation
+                        if (loc != null) {
+                            locationCoords = Pair(loc.latitude, loc.longitude)
+                            // FIX: Buat file di cacheDir/selfies/ sesuai konfigurasi FileProvider
+                            val photoFile = createPhotoFile(context)
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                photoFile
+                            )
+                            imageUri = uri
+                            cameraLauncher.launch(uri)
+                        }
+                    }
+                }, Looper.getMainLooper())
+            } catch (e: SecurityException) {
+                vm.clearMessage()
+            }
+        }
+
+        // Permission launcher: minta lokasi + kamera sekaligus
+        val permissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
             val fineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
             val coarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
             val camera = permissions[Manifest.permission.CAMERA] ?: false
-            
+
             if ((fineLocation || coarseLocation) && camera) {
-                // Get Location
-                val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000).setMaxUpdates(1).build()
-                try {
-                    fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
-                        override fun onLocationResult(locationResult: LocationResult) {
-                            val loc = locationResult.lastLocation
-                            if (loc != null) {
-                                locationCoords = Pair(loc.latitude, loc.longitude)
-                                // Create temp file for photo
-                                val photoFile = File(context.cacheDir, "attendance_${System.currentTimeMillis()}.jpg")
-                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
-                                imageUri = uri
-                                cameraLauncher.launch(uri)
-                            }
-                        }
-                    }, Looper.getMainLooper())
-                } catch (e: SecurityException) {
-                    // Handle missing permissions
-                }
+                launchCameraWithLocation()
             }
         }
 
         fun launchAttendanceSequence(clockType: String) {
             currentClockType = clockType
-            locationLauncher.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.CAMERA
-            ))
+
+            // Cek apakah semua permission sudah di-grant (tanpa perlu request ulang)
+            val hasFineLocation = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            val hasCoarseLocation = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+            val hasCamera = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if ((hasFineLocation || hasCoarseLocation) && hasCamera) {
+                // Sudah punya semua permission, langsung launch kamera
+                launchCameraWithLocation()
+            } else {
+                // Request permissions yang belum di-grant
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                        Manifest.permission.CAMERA
+                    )
+                )
+            }
         }
 
         // Check-in / Check-out buttons
@@ -268,7 +307,6 @@ fun AttendanceMonitorScreen(user: User, vm: AttendanceViewModel = viewModel()) {
                                 .background(if (isLate) com.ptniger.hris.ui.theme.OrangeSoft else com.ptniger.hris.ui.theme.GreenSoft),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Show initials from employeeId (first 2 chars) as avatar placeholder
                             Text(
                                 att.employeeId.take(2).uppercase(),
                                 style = MaterialTheme.typography.labelMedium,
@@ -277,7 +315,6 @@ fun AttendanceMonitorScreen(user: User, vm: AttendanceViewModel = viewModel()) {
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            // Display employeeId more cleanly — name would require an extra Firestore call
                             Text(
                                 "ID: ${att.employeeId}",
                                 style = MaterialTheme.typography.titleSmall
@@ -329,3 +366,4 @@ private fun LegendDot(color: androidx.compose.ui.graphics.Color, label: String) 
         Text(label, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
     }
 }
+
