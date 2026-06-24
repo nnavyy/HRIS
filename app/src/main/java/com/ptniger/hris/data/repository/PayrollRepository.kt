@@ -56,6 +56,13 @@ class PayrollRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
+    suspend fun generateRaw(payroll: Payroll): Result<String> {
+        return try {
+            val ref = col.add(payroll).await()
+            Result.success(ref.id)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
     suspend fun getByEmployee(employeeId: String): List<Payroll> {
         return try {
             col.whereEqualTo("employeeId", employeeId)

@@ -68,14 +68,27 @@ class LeaveRepository {
         }
     }
 
-    suspend fun getPending(): List<LeaveRequest> {
+    suspend fun getPending(departmentId: String = ""): List<LeaveRequest> {
         return try {
-            col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
+            var query: Query = col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+            if (departmentId.isNotEmpty()) {
+                query = query.whereEqualTo("departmentId", departmentId)
+            }
+            query.orderBy("createdAt", Query.Direction.DESCENDING)
                 .get().await().documents.mapNotNull {
                     it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
                 }
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) {
+            try {
+                var query: Query = col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+                if (departmentId.isNotEmpty()) {
+                    query = query.whereEqualTo("departmentId", departmentId)
+                }
+                query.get().await().documents.mapNotNull {
+                        it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
+                    }.sortedByDescending { it.createdAt }
+            } catch (e2: Exception) { emptyList() }
+        }
     }
 
     suspend fun getAll(): List<LeaveRequest> {
@@ -133,9 +146,13 @@ class LeaveRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun getPendingCount(): Int {
+    suspend fun getPendingCount(departmentId: String = ""): Int {
         return try {
-            col.whereEqualTo("status", Constants.LeaveStatus.PENDING).get().await().size()
+            var query: Query = col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+            if (departmentId.isNotEmpty()) {
+                query = query.whereEqualTo("departmentId", departmentId)
+            }
+            query.get().await().size()
         } catch (e: Exception) { 0 }
     }
 }

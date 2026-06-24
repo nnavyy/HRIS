@@ -18,9 +18,16 @@ import com.ptniger.hris.data.repository.EmployeeRepository
 import com.ptniger.hris.ui.theme.*
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: EmployeeViewModel = viewModel()) {
+    LaunchedEffect(Unit) { vm.loadAll() }
+    val officeLocations by vm.officeLocations.collectAsState()
+    val usersList by vm.users.collectAsState()
     val isNew = employeeId == null
+    var linkedUserId by remember { mutableStateOf("") }
+    var userExpanded by remember { mutableStateOf(false) }
+
     var nik by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -28,6 +35,8 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
     var position by remember { mutableStateOf("") }
     var department by remember { mutableStateOf("") }
     var branch by remember { mutableStateOf("") }
+    var officeId by remember { mutableStateOf("") }
+    var officeExpanded by remember { mutableStateOf(false) }
     var baseSalary by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val message by vm.message.collectAsState()
@@ -38,7 +47,9 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
             emp?.let {
                 nik = it.nik; name = it.name; email = it.email; phone = it.phone
                 position = it.position; department = it.department; branch = it.branch
+                officeId = it.officeId
                 baseSalary = it.baseSalary.toLong().toString()
+                linkedUserId = it.userId
             }
         }
     }
@@ -52,13 +63,100 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
         }
 
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (isNew) {
+                Column {
+                    Text("Integrasi Akun Sistem (Opsional)", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                    Spacer(Modifier.height(4.dp))
+                    ExposedDropdownMenuBox(
+                        expanded = userExpanded,
+                        onExpandedChange = { userExpanded = !userExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = usersList.find { it.userId == linkedUserId }?.let { "${it.fullName.ifEmpty { it.name }} - ${it.role}" } ?: "Pilih Akun yang Sudah Terdaftar",
+                            onValueChange = {},
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            shape = RoundedCornerShape(16.dp),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = userExpanded) }
+                        )
+                        ExposedDropdownMenu(
+                            expanded = userExpanded,
+                            onDismissRequest = { userExpanded = false }
+                        ) {
+                            usersList.forEach { usr ->
+                                DropdownMenuItem(
+                                    text = { Text("${usr.fullName.ifEmpty { usr.name }} (${usr.email})") },
+                                    onClick = {
+                                        linkedUserId = usr.userId
+                                        name = usr.fullName.ifEmpty { usr.name }
+                                        email = usr.email
+                                        userExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             FormField("NIK", nik) { nik = it }
             FormField("Nama Lengkap", name) { name = it }
             FormField("Email", email) { email = it }
             FormField("No. Telepon", phone) { phone = it }
             FormField("Jabatan", position) { position = it }
             FormField("Departemen", department) { department = it }
-            FormField("Cabang", branch) { branch = it }
+            // Cabang auto-diisi dari Lokasi Kantor yang dipilih
+            Column {
+                Text("Cabang", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Spacer(Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = branch.ifEmpty { "Otomatis dari lokasi kantor" },
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = TextSecondary,
+                        disabledBorderColor = TextMuted,
+                        disabledLabelColor = TextMuted
+                    ),
+                    enabled = false
+                )
+            }
+            
+            Column {
+                Text("Lokasi Kantor", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Spacer(Modifier.height(4.dp))
+                ExposedDropdownMenuBox(
+                    expanded = officeExpanded,
+                    onExpandedChange = { officeExpanded = !officeExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = officeLocations.find { it.id == officeId }?.name ?: "Pilih Kantor",
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(16.dp),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = officeExpanded) }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = officeExpanded,
+                        onDismissRequest = { officeExpanded = false }
+                    ) {
+                        officeLocations.forEach { loc ->
+                            DropdownMenuItem(
+                                text = { Text(loc.name) },
+                                onClick = {
+                                    officeId = loc.id
+                                    branch = loc.name  // Auto-sync cabang dari nama kantor
+                                    officeExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
             FormField("Gaji Pokok (Rp)", baseSalary) { baseSalary = it }
 
             if (message != null) {
@@ -70,7 +168,9 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
                     val emp = Employee(
                         employeeId = employeeId ?: "", nik = nik, name = name, email = email,
                         phone = phone, position = position, department = department, branch = branch,
-                        baseSalary = baseSalary.toDoubleOrNull() ?: 0.0
+                        officeId = officeId,
+                        baseSalary = baseSalary.toDoubleOrNull() ?: 0.0,
+                        userId = linkedUserId
                     )
                     vm.save(emp, isNew)
                 },

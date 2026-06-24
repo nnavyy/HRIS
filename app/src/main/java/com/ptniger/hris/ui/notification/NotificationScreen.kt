@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,14 +23,17 @@ import com.ptniger.hris.ui.theme.*
 import kotlinx.coroutines.launch
 
 @Composable
-fun NotificationScreen(user: User) {
+fun NotificationScreen(user: User, onBack: () -> Unit = {}) {
     val repo = remember { NotificationRepository() }
     var notifications by remember { mutableStateOf<List<Notification>>(emptyList()) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { notifications = repo.getByUser(user.userId) }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
-        Text("Notifikasi", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("Notifikasi", style = MaterialTheme.typography.headlineMedium)
+        }
         LazyColumn(contentPadding = PaddingValues(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(notifications) { notif ->
                 Surface(

@@ -60,8 +60,29 @@ class AttendanceViewModel : ViewModel() {
             _state.value = _state.value.copy(isLoading = true, message = "Memproses absensi...")
             try {
                 val officeRepo = com.ptniger.hris.data.repository.OfficeLocationRepository()
-                val activeOffices = officeRepo.getActiveLocations()
-                val office = activeOffices.firstOrNull()
+                val employeeRepo = com.ptniger.hris.data.repository.EmployeeRepository()
+                val employee = employeeRepo.getById(employeeId)
+                
+                val office = if (employee?.officeId?.isNotEmpty() == true) {
+                    officeRepo.getById(employee.officeId)
+                } else {
+                    val activeOffices = officeRepo.getActiveLocations()
+                    activeOffices.firstOrNull()
+                }
+
+                if (office == null) {
+                    _state.value = _state.value.copy(message = "Absensi gagal: Lokasi kantor belum ditetapkan.", isLoading = false)
+                    return@launch
+                }
+
+                val results = FloatArray(1)
+                android.location.Location.distanceBetween(latitude, longitude, office.latitude, office.longitude, results)
+                val distance = results[0]
+
+                if (distance > 50) {
+                    _state.value = _state.value.copy(message = "Absensi gagal: Anda berada di luar jangkauan (${distance.toInt()} meter). Harus dalam 50 meter dari kantor.", isLoading = false)
+                    return@launch
+                }
 
                 val now = DateUtils.nowTime()
                 
@@ -94,10 +115,19 @@ class AttendanceViewModel : ViewModel() {
         }
     }
 
-    fun loadAllToday() {
+    fun loadAllToday(userId: String = "", departmentId: String = "") {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            val list = repo.getAllToday()
+            var list = repo.getAllToday()
+            if (userId.isNotEmpty() || departmentId.isNotEmpty()) {
+                val empRepo = com.ptniger.hris.data.repository.EmployeeRepository()
+                val allEmps = empRepo.getAll()
+                val teamIds = allEmps.filter {
+                    it.managerId == userId || (departmentId.isNotEmpty() && it.department.equals(departmentId, ignoreCase = true))
+                }.map { it.employeeId }.toSet()
+                
+                list = list.filter { it.employeeId in teamIds }
+            }
             _state.value = _state.value.copy(todayList = list, isLoading = false)
         }
     }
@@ -105,15 +135,29 @@ class AttendanceViewModel : ViewModel() {
 
     private fun buildCalendar(attendance: List<Attendance>): List<Pair<Int, String>> {
         val result = mutableListOf<Pair<Int, String>>()
-        val daysInMonth = java.util.Calendar.getInstance().let {
-            it.set(java.util.Calendar.YEAR, DateUtils.currentYear())
-            it.set(java.util.Calendar.MONTH, DateUtils.currentMonth() - 1)
-            it.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+        val cal = java.util.Calendar.getInstance()
+        cal.set(java.util.Calendar.YEAR, DateUtils.currentYear())
+        cal.set(java.util.Calendar.MONTH, DateUtils.currentMonth() - 1)
+        val daysInMonth = cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+        
+        cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+        // DAY_OF_WEEK: Sunday=1, Monday=2... Saturday=7
+        // UI uses Monday-first: S(Mon)=0, S(Tue)=1, R(Wed)=2, K(Thu)=3, J(Fri)=4, S(Sat)=5, M(Sun)=6
+        val firstDayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
+        val paddingDays = if (firstDayOfWeek == java.util.Calendar.SUNDAY) 6 else firstDayOfWeek - 2
+        
+        for (i in 0 until paddingDays) {
+            result.add(-1 to "")
         }
+
         for (d in 1..daysInMonth) {
+            cal.set(java.util.Calendar.DAY_OF_MONTH, d)
+            val dayOfWeek = cal.get(java.util.Calendar.DAY_OF_WEEK)
+            val isWeekend = dayOfWeek == java.util.Calendar.SATURDAY || dayOfWeek == java.util.Calendar.SUNDAY
+            
             val dateStr = String.format("%04d-%02d-%02d", DateUtils.currentYear(), DateUtils.currentMonth(), d)
             val att = attendance.find { it.date == dateStr }
-            val status = att?.attendanceStatus ?: if (d % 7 == 0 || d % 7 == 6) "holiday" else ""
+            val status = att?.attendanceStatus ?: if (isWeekend) "holiday" else ""
             result.add(d to status)
         }
         return result

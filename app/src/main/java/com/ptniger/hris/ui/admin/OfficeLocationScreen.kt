@@ -123,8 +123,17 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Kantor") }, singleLine = true)
-                    OutlinedTextField(value = latitude, onValueChange = { latitude = it }, label = { Text("Latitude") }, singleLine = true)
-                    OutlinedTextField(value = longitude, onValueChange = { longitude = it }, label = { Text("Longitude") }, singleLine = true)
+                    Text("Pilih Lokasi di Peta (Tap & Tahan)", style = MaterialTheme.typography.labelMedium)
+                    com.ptniger.hris.ui.components.OsmMapView(
+                        modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
+                        initialLat = latitude.toDoubleOrNull() ?: -6.2088, // Default Jakarta
+                        initialLng = longitude.toDoubleOrNull() ?: 106.8456,
+                        onLocationSelected = { lat, lng ->
+                            latitude = lat.toString()
+                            longitude = lng.toString()
+                        }
+                    )
+                    Text("Lat: ${latitude.take(8)}, Lng: ${longitude.take(9)}", style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(value = radius, onValueChange = { radius = it }, label = { Text("Radius (meter)") }, singleLine = true)
                 }
             },

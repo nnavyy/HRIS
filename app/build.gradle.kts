@@ -6,6 +6,11 @@ plugins {
 }
 
 android {
+    sourceSets {
+        getByName("main") {
+            manifest.srcFile("src/main/AndroidManifest2.xml")
+        }
+    }
     namespace = "com.ptniger.hris"
     compileSdk = 36
 
@@ -42,6 +47,7 @@ android {
 }
 
 dependencies {
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
     // MultiDex support
     implementation("androidx.multidex:multidex:2.0.1")
 

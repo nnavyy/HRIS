@@ -4,6 +4,7 @@ data class LeaveRequest(
     val leaveId: String = "",
     val employeeId: String = "",
     val employeeName: String = "",
+    val departmentId: String = "",
     val type: String = "",
     val startDate: String = "",
     val endDate: String = "",

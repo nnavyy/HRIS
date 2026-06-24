@@ -85,5 +85,14 @@ class AuthRepository {
         }
     }
 
+    suspend fun getAllUsers(): List<User> {
+        return try {
+            val docs = db.collection(Constants.Collections.USERS).get().await()
+            docs.documents.mapNotNull { it.toObject(User::class.java)?.copy(userId = it.id) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     fun logout() { auth.signOut() }
 }

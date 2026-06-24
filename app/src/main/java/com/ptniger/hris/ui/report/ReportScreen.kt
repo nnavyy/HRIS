@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,7 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.clickable
 
 @Composable
-fun ReportScreen(user: User, vm: ReportViewModel = viewModel()) {
+fun ReportScreen(user: User, onBack: () -> Unit = {}, vm: ReportViewModel = viewModel()) {
     val context = LocalContext.current
     val message by vm.message.collectAsState()
     val isLoading by vm.isLoading.collectAsState()
@@ -43,7 +44,10 @@ fun ReportScreen(user: User, vm: ReportViewModel = viewModel()) {
     }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Laporan", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("Laporan", style = MaterialTheme.typography.headlineMedium)
+        }
         if (message != null) {
             Spacer(Modifier.height(4.dp))
             Surface(

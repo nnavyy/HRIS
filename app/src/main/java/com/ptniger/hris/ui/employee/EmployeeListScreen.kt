@@ -23,12 +23,25 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
     var search by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { vm.loadAll() }
     val employees by vm.employees.collectAsState()
-    val filtered = employees.filter { it.name.contains(search, true) || it.nik.contains(search, true) || it.department.contains(search, true) }
+    
+    val isManager = user.primaryRole == com.ptniger.hris.utils.Constants.Role.MANAGER ||
+        user.role == com.ptniger.hris.utils.Constants.Role.MANAGER
+    
+    // Manager hanya melihat tim di departemennya sendiri atau bawahannya langsung
+    val baseList = if (isManager) {
+        employees.filter { it.managerId == user.userId || (user.departmentId.isNotEmpty() && it.department.equals(user.departmentId, ignoreCase = true)) }
+    } else {
+        employees
+    }
+    val filtered = baseList.filter { it.name.contains(search, true) || it.nik.contains(search, true) || it.department.contains(search, true) }
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 72.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Data Karyawan", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                if (isManager) "Tim Saya" else "Data Karyawan",
+                style = MaterialTheme.typography.headlineMedium
+            )
         }
 
         OutlinedTextField(
@@ -44,7 +57,7 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
         LazyColumn(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filtered) { emp ->
                 Surface(shape = RoundedCornerShape(22.dp), color = Surface, shadowElevation = 1.dp,
-                    modifier = Modifier.fillMaxWidth().clickable { onNavigateToForm(emp.employeeId) }) {
+                    modifier = Modifier.fillMaxWidth().clickable { if (!isManager) onNavigateToForm(emp.employeeId) }) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(44.dp).clip(RoundedCornerShape(16.dp)).background(BlueSoft), contentAlignment = Alignment.Center) {
                             Text(emp.name.take(2).uppercase(), style = MaterialTheme.typography.labelMedium, color = Blue)
@@ -65,13 +78,25 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
                     }
                 }
             }
+            if (filtered.isEmpty()) {
+                item {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            if (isManager) "Belum ada karyawan di departemen Anda" else "Tidak ada karyawan ditemukan",
+                            style = MaterialTheme.typography.bodyMedium, color = TextSecondary
+                        )
+                    }
+                }
+            }
             item { Spacer(Modifier.height(100.dp)) }
         }
     }
-    // FAB
-    Box(Modifier.fillMaxSize().padding(end = 18.dp, bottom = 90.dp), contentAlignment = Alignment.BottomEnd) {
-        FloatingActionButton(onClick = { onNavigateToForm("new") }, containerColor = Blue, contentColor = Surface, shape = RoundedCornerShape(16.dp)) {
-            Icon(Icons.Default.Add, contentDescription = "Tambah", modifier = Modifier.size(24.dp))
+    // FAB — hanya tampil untuk HR, bukan Manager
+    if (!isManager) {
+        Box(Modifier.fillMaxSize().padding(end = 18.dp, bottom = 90.dp), contentAlignment = Alignment.BottomEnd) {
+            FloatingActionButton(onClick = { onNavigateToForm("new") }, containerColor = Blue, contentColor = Surface, shape = RoundedCornerShape(16.dp)) {
+                Icon(Icons.Default.Add, contentDescription = "Tambah", modifier = Modifier.size(24.dp))
+            }
         }
     }
     } // Box

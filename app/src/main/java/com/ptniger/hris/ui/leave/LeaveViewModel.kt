@@ -33,7 +33,7 @@ class LeaveViewModel : ViewModel() {
         }
     }
 
-    fun loadPending() { viewModelScope.launch { _pending.value = repo.getPending() } }
+    fun loadPending(departmentId: String = "") { viewModelScope.launch { _pending.value = repo.getPending(departmentId) } }
 
     fun submitWithQuotaUpdate(leave: LeaveRequest, userId: String, employeeDocId: String, duration: Int, currentQuota: Int) {
         viewModelScope.launch {

@@ -19,10 +19,26 @@ class PayrollViewModel : ViewModel() {
     fun loadAll() { viewModelScope.launch { _payrolls.value = repo.getAll() } }
     fun loadByEmployee(empId: String) { viewModelScope.launch { _payrolls.value = repo.getByEmployee(empId) } }
 
-    fun generate(empId: String, empName: String, base: Double, allow: Double, ot: Double, ded: Double) {
+    fun generate(empId: String, empName: String, base: Double, allow: Double, otHours: Double, ded: Double) {
         viewModelScope.launch {
-            repo.generate(empId, empName, DateUtils.currentMonth(), DateUtils.currentYear(), base, allow, ot, ded).fold(
-                onSuccess = { _message.value = "Payroll berhasil di-generate (KPI bonus otomatis)"; loadAll() },
+            val kpiScore = com.ptniger.hris.data.repository.KpiRepository().getTotalWeightedScore(empId, DateUtils.currentPeriod())
+            val kpiBonus = com.ptniger.hris.utils.KpiCalculator.calculateKpiBonus(base, kpiScore)
+            
+            val otPay = com.ptniger.hris.utils.PayrollCalculator.calculateOvertime(base, allow, otHours)
+            val bpjsKes = com.ptniger.hris.utils.PayrollCalculator.calculateBpjsKesehatan(base, allow)
+            val bpjsJht = com.ptniger.hris.utils.PayrollCalculator.calculateBpjsJht(base, allow)
+            val bpjsJp = com.ptniger.hris.utils.PayrollCalculator.calculateBpjsJp(base, allow)
+            
+            val net = com.ptniger.hris.utils.PayrollCalculator.calculateNetSalary(base, allow, otPay, kpiBonus, bpjsKes, bpjsJht, bpjsJp, ded)
+            
+            val payroll = Payroll(
+                employeeId = empId, employeeName = empName, month = DateUtils.currentMonth(), year = DateUtils.currentYear(),
+                baseSalary = base, allowance = allow, overtimeHours = otHours, overtimePay = otPay, kpiScore = kpiScore, kpiBonus = kpiBonus,
+                bpjsKesehatan = bpjsKes, bpjsJht = bpjsJht, bpjsJp = bpjsJp, deductions = ded, netSalary = net
+            )
+            
+            repo.generateRaw(payroll).fold(
+                onSuccess = { _message.value = "Payroll berhasil di-generate (BPJS & Lembur otomatis)"; loadAll() },
                 onFailure = { _message.value = "Error: ${it.message}" }
             )
         }

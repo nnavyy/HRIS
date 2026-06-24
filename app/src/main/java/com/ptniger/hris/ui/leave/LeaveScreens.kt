@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -229,6 +230,7 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
                             leave = LeaveRequest(
                                 employeeId = empId,
                                 employeeName = user.fullName.ifEmpty { user.name },
+                                departmentId = user.departmentId,
                                 type = type,
                                 startDate = startDate,
                                 endDate = endDate,
@@ -284,9 +286,16 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
                     }
                 } else {
                     leaves.forEachIndexed { idx, leave ->
+                        val displayDate = if (leave.startDate.isNotEmpty() && leave.endDate.isNotEmpty()) {
+                            "${com.ptniger.hris.utils.DateUtils.formatDate(leave.startDate)} → ${com.ptniger.hris.utils.DateUtils.formatDate(leave.endDate)} (${leave.duration} hari)"
+                        } else if (leave.startDate.isNotEmpty()) {
+                            "${com.ptniger.hris.utils.DateUtils.formatDate(leave.startDate)} (${leave.duration} hari)"
+                        } else {
+                            "Tanggal tidak tersedia (${leave.duration} hari)"
+                        }
                         LeaveRow(
                             title = leave.type,
-                            date = "${leave.startDate} → ${leave.endDate} (${leave.duration} hari)",
+                            date = displayDate,
                             status = leave.status
                         )
                         if (idx < leaves.lastIndex) HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -299,10 +308,10 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
 }
 
 @Composable
-fun LeaveApprovalScreen(user: User, vm: LeaveViewModel = viewModel()) {
+fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel = viewModel()) {
     val pending by vm.pending.collectAsState()
     val message by vm.message.collectAsState()
-    LaunchedEffect(Unit) { vm.loadPending() }
+    LaunchedEffect(Unit) { vm.loadPending(user.departmentId) }
 
     Column(
         Modifier
@@ -314,11 +323,16 @@ fun LeaveApprovalScreen(user: User, vm: LeaveViewModel = viewModel()) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 72.dp, top = 14.dp, bottom = 10.dp),
+                .padding(start = 4.dp, end = 72.dp, top = 14.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Approval Cuti", style = MaterialTheme.typography.headlineMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+                Text("Approval Cuti", style = MaterialTheme.typography.headlineMedium)
+            }
             if (pending.isNotEmpty()) {
                 Surface(shape = RoundedCornerShape(999.dp), color = OrangeSoft) {
                     Text("${pending.size} Pending", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = Orange)
@@ -348,7 +362,12 @@ fun LeaveApprovalScreen(user: User, vm: LeaveViewModel = viewModel()) {
                         Column(Modifier.weight(1f)) {
                             Text(leave.employeeName, style = MaterialTheme.typography.titleSmall)
                             Text("${leave.type} · ${leave.duration} hari", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                            Text("${leave.startDate} → ${leave.endDate}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            val displayDate = if (leave.startDate.isNotEmpty() && leave.endDate.isNotEmpty()) {
+                                "${com.ptniger.hris.utils.DateUtils.formatDate(leave.startDate)} → ${com.ptniger.hris.utils.DateUtils.formatDate(leave.endDate)}"
+                            } else {
+                                "Tanggal tidak tersedia"
+                            }
+                            Text(displayDate, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                             Text("Alasan: ${leave.reason}", style = MaterialTheme.typography.bodySmall, color = TextMuted)
                         }
                     }

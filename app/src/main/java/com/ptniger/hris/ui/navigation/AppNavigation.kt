@@ -108,27 +108,27 @@ fun MainScaffold(
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).windowInsetsPadding(WindowInsets.navigationBars)) {
                 when (currentRoute) {
                     "dashboard" -> DashboardRouter(user = user, onNavigate = onNavigateToDetail)
                     "employees" -> EmployeeListScreen(user = user, onNavigateToForm = { id ->
                         onNavigateToDetail("employee_form_$id")
                     })
-                    "leave_approval" -> LeaveApprovalScreen(user = user)
+                    "leave_approval" -> LeaveApprovalScreen(user = user, onBack = { onNavigate("dashboard") })
                     "leave_request" -> LeaveRequestScreen(user = user)
                     "attendance" -> AttendanceScreen(user = user)
-                    "attendance_monitor" -> AttendanceMonitorScreen(user = user)
-                    "kpi_config" -> KpiConfigScreen(user = user)
-                    "kpi_scoring" -> KpiScoringScreen(user = user)
-                    "kpi_result" -> KpiResultScreen(user = user)
-                    "payroll" -> PayrollScreen(user = user)
-                    "payroll_approval" -> PayrollApprovalScreen(user = user)
-                    "salary_slip" -> SalarySlipScreen(user = user)
-                    "report" -> ReportScreen(user = user)
-                    "notifications" -> NotificationScreen(user = user)
-                    "audit_log" -> AuditLogScreen(user = user)
-                    "role_management" -> RoleManagementScreen(user = user)
-                    "automation" -> AutomationScreen(user = user)
+                    "attendance_monitor" -> AttendanceMonitorScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "kpi_config" -> KpiConfigScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "kpi_scoring" -> KpiScoringScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "kpi_result" -> KpiResultScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "payroll" -> PayrollScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "payroll_approval" -> PayrollApprovalScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "salary_slip" -> SalarySlipScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "report" -> ReportScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "notifications" -> NotificationScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "audit_log" -> AuditLogScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "role_management" -> RoleManagementScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "automation" -> AutomationScreen(user = user, onBack = { onNavigate("dashboard") })
                     "office_locations" -> OfficeLocationScreen(user = user, onBack = { onNavigate("dashboard") })
                     "manage_accounts" -> AccountManagementScreen(user = user, onBack = { onNavigate("dashboard") })
                     "profile" -> ProfileScreen(user = user, onLogout = onLogout)
@@ -180,13 +180,15 @@ fun MainScaffold(
             }
         }
 
-        // Bottom Nav Bar
+        // Bottom Nav Bar — wrapped with navigationBarsPadding agar tidak tertutup sistem navigation bar (3-button)
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-            BottomNavBar(
-                roles = user.roles.ifEmpty { listOf(user.role) },
-                currentRoute = currentRoute,
-                onNavigate = onNavigate
-            )
+            Box(modifier = Modifier.navigationBarsPadding()) {
+                BottomNavBar(
+                    roles = user.roles.ifEmpty { listOf(user.role) },
+                    currentRoute = currentRoute,
+                    onNavigate = onNavigate
+                )
+            }
         }
     }
 }

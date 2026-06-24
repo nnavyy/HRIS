@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,11 +26,10 @@ fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardVie
     LaunchedEffect(Unit) { vm.loadHrDashboard() }
     val s by vm.state.collectAsState()
 
-    DashboardLayout(title = "Dashboard HR", subtitle = "HRIS Portal · HR / Admin", user = user) {
-        HeroCard("Dashboard HR / Admin", "Kelola master data, approval cuti, payroll, laporan, dan automation.", "HR")
-        Spacer(Modifier.height(16.dp))
+    DashboardLayout(title = "Dashboard HR", subtitle = "HRIS Portal · ${user.fullName.ifEmpty { user.name }}", user = user) {
+        Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Total Karyawan", "${s.totalEmployees}", "+4 bulan ini", Icons.Default.People, BlueSoft, Blue)
+            MetricCard(Modifier.weight(1f), "Total Karyawan", "${s.totalEmployees}", "Semua karyawan", Icons.Default.People, BlueSoft, Blue)
             MetricCard(Modifier.weight(1f), "Approval Pending", "${s.pendingApprovals}", "Cuti & izin", Icons.Default.Inbox, OrangeSoft, Orange)
         }
         Spacer(Modifier.height(10.dp))
@@ -38,10 +38,15 @@ fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardVie
             MetricCard(Modifier.weight(1f), "KPI Config", "Aktif", "Kelola KPI", Icons.Default.Star, PurpleSoft, Purple)
         }
         Spacer(Modifier.height(16.dp))
-        // Quick Actions
+        Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Data Karyawan", Icons.Default.People, BlueSoft, Blue) { onNavigate("employees") }
+        Spacer(Modifier.height(8.dp))
         QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
         Spacer(Modifier.height(8.dp))
-        QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
+        QuickActionButton("Konfigurasi KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_config") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Lihat Audit Log", Icons.Default.Shield, TealSoft, Teal) { onNavigate("audit_log") }
         Spacer(Modifier.height(100.dp))
     }
 }
@@ -51,19 +56,26 @@ fun FinanceDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
     LaunchedEffect(Unit) { vm.loadFinanceDashboard() }
     val s by vm.state.collectAsState()
 
-    DashboardLayout(title = "Dashboard Finance", subtitle = "HRIS Portal · Finance", user = user) {
-        HeroCard("Dashboard Finance", "Fokus pada payroll, tunjangan, potongan, slip gaji, dan laporan penggajian.", "FN")
-        Spacer(Modifier.height(16.dp))
+    DashboardLayout(title = "Dashboard Finance", subtitle = "HRIS Portal · ${user.fullName.ifEmpty { user.name }}", user = user) {
+        Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Total Karyawan", "${s.totalEmployees}", "Data payroll", Icons.Default.Payments, OrangeSoft, Orange)
+            MetricCard(Modifier.weight(1f), "Total Karyawan", "${s.totalEmployees}", "Data payroll", Icons.Default.People, OrangeSoft, Orange)
             MetricCard(Modifier.weight(1f), "Slip Gaji", "Proses", "Generate slip", Icons.Default.Description, BlueSoft, Blue)
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricCard(Modifier.weight(1f), "Potongan", "BPJS+PPh", "Kalkulasi", Icons.Default.Remove, RedSoft, Red)
-            MetricCard(Modifier.weight(1f), "KPI Bonus", "Aktif", "Terhitung otomatis", Icons.Default.TrendingUp, GreenSoft, Green)
+            MetricCard(Modifier.weight(1f), "KPI Bonus", "Aktif", "Terhitung otomatis", Icons.AutoMirrored.Filled.TrendingUp, GreenSoft, Green)
         }
         Spacer(Modifier.height(16.dp))
+        Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Kelola Payroll", Icons.Default.Payments, OrangeSoft, Orange) { onNavigate("payroll") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Approval Payroll", Icons.Default.CheckCircle, GreenSoft, Green) { onNavigate("payroll_approval") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Download Laporan", Icons.Default.Description, BlueSoft, Blue) { onNavigate("report") }
+        Spacer(Modifier.height(8.dp))
         QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
         Spacer(Modifier.height(100.dp))
     }
@@ -71,23 +83,32 @@ fun FinanceDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
 
 @Composable
 fun ManagerDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardViewModel = viewModel()) {
-    LaunchedEffect(Unit) { vm.loadManagerDashboard(user.departmentId) }
+    LaunchedEffect(Unit) { vm.loadManagerDashboard(user.userId, user.departmentId) }
     val s by vm.state.collectAsState()
 
-    DashboardLayout(title = "Dashboard Manager", subtitle = "HRIS Portal · Manager", user = user) {
-        HeroCard("Dashboard Manager", "Pantau anggota tim, absensi, dan approval pengajuan cuti bawahan.", "MG")
-        Spacer(Modifier.height(16.dp))
+    DashboardLayout(title = "Dashboard Manager", subtitle = "HRIS Portal · ${user.fullName.ifEmpty { user.name }}", user = user) {
+        Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Anggota Tim", "${s.totalEmployees}", "Divisi Anda", Icons.Default.People, TealSoft, Teal)
+            MetricCard(Modifier.weight(1f), "Anggota Tim", "${s.totalEmployees}", "Di departemen Anda", Icons.Default.People, TealSoft, Teal)
             MetricCard(Modifier.weight(1f), "Cuti Pending", "${s.pendingApprovals}", "Perlu review", Icons.Default.CalendarMonth, OrangeSoft, Orange)
         }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            MetricCard(Modifier.weight(1f), "Hadir Hari Ini", "${s.presentToday}", "Absensi tim", Icons.Default.CheckCircle, GreenSoft, Green)
+            MetricCard(Modifier.weight(1f), "Approval Payroll", "Pending", "Perlu review", Icons.Default.Payments, BlueSoft, Blue)
+        }
         Spacer(Modifier.height(16.dp))
-        // Quick Actions moved from navbar
+        Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+        Spacer(Modifier.height(8.dp))
         QuickActionButton("Approval Cuti Bawahan", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Approval Payroll", Icons.Default.Payments, BlueSoft, Blue) { onNavigate("payroll_approval") }
         Spacer(Modifier.height(8.dp))
+        QuickActionButton("Penilaian KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_scoring") }
+        Spacer(Modifier.height(8.dp))
         QuickActionButton("Monitor Absensi Tim", Icons.Default.AccessTime, TealSoft, Teal) { onNavigate("attendance_monitor") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Daftar Tim Saya", Icons.Default.People, GreenSoft, Green) { onNavigate("employees") }
         Spacer(Modifier.height(100.dp))
     }
 }
@@ -100,7 +121,7 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
     DashboardLayout(title = "Dashboard Super Admin", subtitle = "HRIS Portal · Super Admin", user = user) {
         Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Akun Aktif", "${s.totalEmployees + 5}", "Karyawan + admin", Icons.Default.Shield, PurpleSoft, Purple)
+            MetricCard(Modifier.weight(1f), "Akun Aktif", "${s.totalUsers}", "Karyawan + admin", Icons.Default.Shield, PurpleSoft, Purple)
             MetricCard(Modifier.weight(1f), "Role Aktif", "5", "HR,FN,MG,SA,KY", Icons.Default.Person, BlueSoft, Blue)
         }
         Spacer(Modifier.height(10.dp))
@@ -133,9 +154,8 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
     LaunchedEffect(Unit) { vm.loadEmployeeDashboard(user.userId) }
     val s by vm.state.collectAsState()
 
-    DashboardLayout(title = "Dashboard", subtitle = "HRIS Portal · Karyawan", user = user) {
-        HeroCard("Halo, ${user.fullName.ifEmpty { user.name }}", "Akses absensi, pengajuan cuti, slip gaji, dan profil lewat Employee Self Service.", "ESS")
-        Spacer(Modifier.height(16.dp))
+    DashboardLayout(title = "Halo, ${user.fullName.ifEmpty { user.name }}", subtitle = "HRIS Portal · Employee Self Service", user = user) {
+        Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricCard(Modifier.weight(1f), "Status Hari Ini", if (s.checkInTime.isNotEmpty()) "Hadir" else "Belum", s.checkInTime.ifEmpty { "Check-in" }, Icons.Default.AccessTime, GreenSoft, Green)
             MetricCard(Modifier.weight(1f), "Sisa Cuti", "${s.leaveQuota}", "dari 12 hari", Icons.Default.CalendarMonth, BlueSoft, Blue)
@@ -146,12 +166,11 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
             MetricCard(Modifier.weight(1f), "Notifikasi", "${s.unreadNotifications}", "Belum dibaca", Icons.Default.Notifications, OrangeSoft, Orange)
         }
         Spacer(Modifier.height(16.dp))
-        // Quick Actions for Employee Self Service
         Text("Akses Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Absensi Harian", Icons.Default.AccessTime, GreenSoft, Green) { onNavigate("attendance") }
         Spacer(Modifier.height(8.dp))
-        QuickActionButton("Pengajuan Cuti", Icons.Default.CalendarMonth, BlueSoft, Blue) { onNavigate("leave") }
+        QuickActionButton("Pengajuan Cuti", Icons.Default.CalendarMonth, BlueSoft, Blue) { onNavigate("leave_request") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Slip Gaji", Icons.Default.Payments, OrangeSoft, Orange) { onNavigate("salary_slip") }
         Spacer(Modifier.height(8.dp))

@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.ptniger.hris.ui.theme.HRISTheme
 
 @Composable
-fun RoleManagementScreen(user: User) {
+fun RoleManagementScreen(user: User, onBack: () -> Unit = {}) {
     val roles = listOf(Constants.Role.HR, Constants.Role.FINANCE, Constants.Role.MANAGER, Constants.Role.EMPLOYEE)
     var expandedRole by remember { mutableStateOf<String?>(null) }
     var usersByRole by remember { mutableStateOf<Map<String, List<User>>>(emptyMap()) }
@@ -51,7 +52,10 @@ fun RoleManagementScreen(user: User) {
     }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Role & Access", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("Role & Access", style = MaterialTheme.typography.headlineMedium)
+        }
         roles.forEach { role ->
             val color = when (role) { Constants.Role.HR -> Blue; Constants.Role.FINANCE -> Orange; Constants.Role.MANAGER -> Teal; else -> Pink }
             val bg = when (role) { Constants.Role.HR -> BlueSoft; Constants.Role.FINANCE -> OrangeSoft; Constants.Role.MANAGER -> TealSoft; else -> PinkSoft }
@@ -130,7 +134,7 @@ fun RoleManagementScreen(user: User) {
 }
 
 @Composable
-fun AutomationScreen(user: User) {
+fun AutomationScreen(user: User, onBack: () -> Unit = {}) {
     val repo = remember { AuditLogRepository() }
     var rules by remember { mutableStateOf<List<AutomationRule>>(emptyList()) }
     val scope = rememberCoroutineScope()
@@ -143,7 +147,10 @@ fun AutomationScreen(user: User) {
     }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Automation Rules", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("Automation Rules", style = MaterialTheme.typography.headlineMedium)
+        }
         
         // Info banner
         Surface(
@@ -241,7 +248,10 @@ fun AccountManagementScreen(user: User, onBack: () -> Unit = {}) {
     )
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Buat Akun Baru", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("Buat Akun Baru", style = MaterialTheme.typography.headlineMedium)
+        }
 
         if (errorMessage != null) {
             Text(errorMessage!!, color = Red, modifier = Modifier.padding(horizontal = 18.dp))

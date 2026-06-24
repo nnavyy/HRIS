@@ -33,17 +33,19 @@ object RoleManager {
                     items.add(NavItem("report", "Laporan", "chart"))
                 }
                 Constants.Role.MANAGER -> {
-                    // "Tim" includes employee list + attendance monitor in one section
-                    items.add(NavItem("employees", "Tim", "people"))
+                    // Manager needs quick access to team management, leave approval, and attendance monitor
+                    items.add(NavItem("employees", "Tim Saya", "people"))
+                    items.add(NavItem("leave_approval", "Approval", "calendar"))
+                    items.add(NavItem("attendance_monitor", "Monitor", "clock"))
                 }
                 Constants.Role.SUPER_ADMIN -> {
                     items.add(NavItem("role_management", "Role", "admin"))
                     items.add(NavItem("automation", "Auto", "settings"))
                 }
                 Constants.Role.EMPLOYEE -> {
-                    items.add(NavItem("attendance", "Absensi", "clock"))
-                    items.add(NavItem("leave_request", "Cuti", "calendar"))
-                    items.add(NavItem("salary_slip", "Gaji", "payments"))
+                    items.add(NavItem("attendance", "AbsenKu", "clock"))
+                    items.add(NavItem("leave_request", "CutiKu", "calendar"))
+                    items.add(NavItem("salary_slip", "GajiKu", "payments"))
                 }
             }
         }

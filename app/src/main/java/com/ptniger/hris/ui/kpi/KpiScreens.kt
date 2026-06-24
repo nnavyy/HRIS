@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,7 +23,7 @@ import com.ptniger.hris.utils.DateUtils
 import com.ptniger.hris.utils.KpiCalculator
 
 @Composable
-fun KpiConfigScreen(user: User, vm: KpiViewModel = viewModel()) {
+fun KpiConfigScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = viewModel()) {
     var dept by remember { mutableStateOf("") }
     var kpiName by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
@@ -32,7 +33,10 @@ fun KpiConfigScreen(user: User, vm: KpiViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadConfigs() }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("KPI Configuration", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("KPI Configuration", style = MaterialTheme.typography.headlineMedium)
+        }
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Tambah KPI Baru", style = MaterialTheme.typography.titleMedium)
@@ -68,7 +72,7 @@ fun KpiConfigScreen(user: User, vm: KpiViewModel = viewModel()) {
 }
 
 @Composable
-fun KpiScoringScreen(user: User, vm: KpiViewModel = viewModel()) {
+fun KpiScoringScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = viewModel()) {
     var selectedEmpId by remember { mutableStateOf("") }
     val employees by vm.employees.collectAsState()
     val configs by vm.configs.collectAsState()
@@ -77,13 +81,26 @@ fun KpiScoringScreen(user: User, vm: KpiViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadEmployees(); vm.loadConfigs() }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Penilaian KPI", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("Penilaian KPI", style = MaterialTheme.typography.headlineMedium)
+        }
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Pilih Karyawan", style = MaterialTheme.typography.titleMedium)
-                employees.take(10).forEach { emp ->
-                    Surface(onClick = { selectedEmpId = emp.employeeId }, shape = RoundedCornerShape(12.dp), color = if (selectedEmpId == emp.employeeId) BlueSoft else Background) {
-                        Text("${emp.name} - ${emp.department}", Modifier.fillMaxWidth().padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+                val filteredEmployees = if (user.departmentId.isNotEmpty()) {
+                    employees.filter { it.department.equals(user.departmentId, ignoreCase = true) }
+                } else {
+                    employees
+                }
+                
+                if (filteredEmployees.isEmpty()) {
+                    Text("Belum ada anggota tim", color = TextSecondary)
+                } else {
+                    filteredEmployees.take(10).forEach { emp ->
+                        Surface(onClick = { selectedEmpId = emp.employeeId }, shape = RoundedCornerShape(12.dp), color = if (selectedEmpId == emp.employeeId) BlueSoft else Background) {
+                            Text("${emp.name} - ${emp.department}", Modifier.fillMaxWidth().padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
             }
@@ -93,12 +110,21 @@ fun KpiScoringScreen(user: User, vm: KpiViewModel = viewModel()) {
             Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Input Skor (0-100)", style = MaterialTheme.typography.titleMedium)
-                    configs.forEach { cfg ->
-                        OutlinedTextField(scoreInputs[cfg.configId] ?: "", { scoreInputs[cfg.configId] = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, label = { Text("${cfg.kpiName} (${(cfg.weight * 100).toInt()}%)") })
+                    val selectedEmp = employees.find { it.employeeId == selectedEmpId }
+                    val empConfigs = configs.filter { it.department.equals(selectedEmp?.department, ignoreCase = true) }
+                    
+                    if (empConfigs.isEmpty()) {
+                        Text("Belum ada konfigurasi KPI untuk departemen ${selectedEmp?.department}", color = TextSecondary)
+                    } else {
+                        empConfigs.forEach { cfg ->
+                            OutlinedTextField(scoreInputs[cfg.configId] ?: "", { scoreInputs[cfg.configId] = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, label = { Text("${cfg.kpiName} (${(cfg.weight * 100).toInt()}%)") })
+                        }
                     }
                     if (message != null) Text(message!!, color = Green, style = MaterialTheme.typography.bodySmall)
                     Button(onClick = {
-                        configs.forEach { cfg ->
+                        val selectedEmp = employees.find { it.employeeId == selectedEmpId }
+                        val empConfigs = configs.filter { it.department.equals(selectedEmp?.department, ignoreCase = true) }
+                        empConfigs.forEach { cfg ->
                             val s = scoreInputs[cfg.configId]?.toIntOrNull() ?: 0
                             vm.submitScore(KpiScore(employeeId = selectedEmpId, configId = cfg.configId, kpiName = cfg.kpiName, score = s, weight = cfg.weight, weightedScore = s * cfg.weight, period = DateUtils.currentPeriod(), scoredBy = user.userId))
                         }
@@ -111,13 +137,16 @@ fun KpiScoringScreen(user: User, vm: KpiViewModel = viewModel()) {
 }
 
 @Composable
-fun KpiResultScreen(user: User, vm: KpiViewModel = viewModel()) {
+fun KpiResultScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = viewModel()) {
     val scores by vm.scores.collectAsState()
     val totalScore by vm.totalScore.collectAsState()
     LaunchedEffect(Unit) { vm.loadScores(user.employeeId) }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Hasil KPI Saya", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("Hasil KPI Saya", style = MaterialTheme.typography.headlineMedium)
+        }
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Total Skor KPI", style = MaterialTheme.typography.titleMedium)

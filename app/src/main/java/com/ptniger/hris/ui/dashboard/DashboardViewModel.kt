@@ -40,14 +40,20 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    fun loadManagerDashboard(department: String) {
+    fun loadManagerDashboard(userId: String, department: String) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            val teamMembers = employeeRepo.getByDepartment(department)
-            val pendingLeave = leaveRepo.getPendingCount()
+            val allEmployees = employeeRepo.getAll()
+            val teamMembers = allEmployees.filter { 
+                it.managerId == userId || (department.isNotEmpty() && it.department.equals(department, ignoreCase = true)) 
+            }
+            val pendingLeave = leaveRepo.getPendingCount(department)
+            val allPresentToday = attendanceRepo.getAllToday()
+            val teamMemberIds = teamMembers.map { it.employeeId }.toSet()
+            val presentToday = allPresentToday.count { it.employeeId in teamMemberIds }
             _state.value = DashboardState(
                 totalEmployees = teamMembers.size, pendingApprovals = pendingLeave,
-                isLoading = false
+                presentToday = presentToday, isLoading = false
             )
         }
     }
@@ -55,11 +61,13 @@ class DashboardViewModel : ViewModel() {
     fun loadAdminDashboard() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
+            val authRepo = AuthRepository()
+            val userCount = authRepo.getAllUsers().size
             val empCount = employeeRepo.getCount()
             val auditCount = auditRepo.getCount()
             val rules = auditRepo.getRules()
             _state.value = DashboardState(
-                totalEmployees = empCount, auditEvents = auditCount,
+                totalEmployees = empCount, totalUsers = userCount, auditEvents = auditCount,
                 automationRules = rules.size, isLoading = false
             )
         }
@@ -89,6 +97,7 @@ class DashboardViewModel : ViewModel() {
 data class DashboardState(
     val isLoading: Boolean = false,
     val totalEmployees: Int = 0,
+    val totalUsers: Int = 0,
     val pendingApprovals: Int = 0,
     val presentToday: Int = 0,
     val leaveQuota: Int = 0,

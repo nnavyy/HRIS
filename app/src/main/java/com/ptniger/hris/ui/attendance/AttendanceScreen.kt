@@ -47,7 +47,7 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
         Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp)) {
             Text("Absensi", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "${DateUtils.formatDate(DateUtils.today())} ?? ${DateUtils.nowTime()}",
+                "${DateUtils.formatDate(DateUtils.today())} • ${DateUtils.nowTime()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
             )
@@ -239,17 +239,29 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
 }
 
 @Composable
-fun AttendanceMonitorScreen(user: User, vm: AttendanceViewModel = viewModel()) {
-    LaunchedEffect(Unit) { vm.loadAllToday() }
+fun AttendanceMonitorScreen(user: User, onBack: () -> Unit = {}, vm: AttendanceViewModel = viewModel()) {
+    LaunchedEffect(Unit) {
+        val isManager = user.primaryRole == com.ptniger.hris.utils.Constants.Role.MANAGER || user.role == com.ptniger.hris.utils.Constants.Role.MANAGER
+        if (isManager) {
+            vm.loadAllToday(user.userId, user.departmentId)
+        } else {
+            vm.loadAllToday()
+        }
+    }
     val state by vm.state.collectAsState()
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp),
+            Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Monitoring Absensi", style = MaterialTheme.typography.headlineMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                }
+                Text("Monitoring Absensi", style = MaterialTheme.typography.headlineMedium)
+            }
             if (state.todayList.isNotEmpty()) {
                 Surface(shape = RoundedCornerShape(999.dp), color = com.ptniger.hris.ui.theme.GreenSoft) {
                     Text(

@@ -6,6 +6,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.ptniger.hris.ui.navigation.AppNavigation
 import com.ptniger.hris.ui.theme.HRISTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.ptniger.hris.utils.NetworkMonitor
+import com.ptniger.hris.ui.components.OfflineScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -13,7 +19,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             HRISTheme {
-                AppNavigation()
+                val context = LocalContext.current
+                val networkMonitor = remember { NetworkMonitor(context) }
+                val isOnline by networkMonitor.isOnline.collectAsState(initial = true)
+
+                if (isOnline) {
+                    AppNavigation()
+                } else {
+                    OfflineScreen()
+                }
             }
         }
     }

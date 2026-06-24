@@ -212,7 +212,7 @@ fun LoginScreen(
                 Spacer(Modifier.height(16.dp))
 
                 Button(
-                    onClick = { viewModel.login(email.trim(), password) },
+                    onClick = { viewModel.login(email.trim(), password, selectedRole) },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Blue),
@@ -221,7 +221,7 @@ fun LoginScreen(
                     if (uiState.isLoading) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     } else {
-                        Text("Masuk ke Dashboard", fontWeight = FontWeight.Bold)
+                        Text("Masuk sebagai ${RoleManager.getRoleDisplayName(selectedRole)}", fontWeight = FontWeight.Bold)
                     }
                 }
             }

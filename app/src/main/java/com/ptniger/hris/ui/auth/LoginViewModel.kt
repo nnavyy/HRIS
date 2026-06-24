@@ -35,11 +35,28 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    fun login(email: String, password: String) {
+    fun login(email: String, password: String, selectedRole: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             authRepo.login(email, password).fold(
                 onSuccess = { user ->
+                    // Validasi role: cek apakah user memiliki role yang dipilih
+                    val userRoles = user.roles.ifEmpty { listOf(user.role, user.primaryRole) }
+                    val hasRole = userRoles.any { it == selectedRole } ||
+                        user.role == selectedRole ||
+                        user.primaryRole == selectedRole
+
+                    if (!hasRole) {
+                        // Role tidak cocok — logout dan tampilkan error
+                        authRepo.logout()
+                        val roleName = com.ptniger.hris.utils.RoleManager.getRoleDisplayName(selectedRole)
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = "Akun ini tidak memiliki akses sebagai $roleName. Pilih role yang sesuai."
+                        )
+                        return@fold
+                    }
+
                     _uiState.value = _uiState.value.copy(isLoading = false, loggedInUser = user)
                     // Pre-load automation rules for the session
                     viewModelScope.launch { try { AutomationEngine.refreshRules() } catch (_: Exception) {} }

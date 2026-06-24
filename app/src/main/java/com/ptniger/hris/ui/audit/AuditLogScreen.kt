@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,14 +20,19 @@ import com.ptniger.hris.data.repository.AuditLogRepository
 import com.ptniger.hris.ui.theme.*
 
 @Composable
-fun AuditLogScreen(user: User) {
+fun AuditLogScreen(user: User, onBack: () -> Unit = {}) {
     val repo = remember { AuditLogRepository() }
     var logs by remember { mutableStateOf<List<AuditLog>>(emptyList()) }
     LaunchedEffect(Unit) { logs = repo.getAll() }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 72.dp, top = 14.dp, bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Audit Log", style = MaterialTheme.typography.headlineMedium)
+        Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 72.dp, top = 14.dp, bottom = 10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+                Text("Audit Log", style = MaterialTheme.typography.headlineMedium)
+            }
             Surface(shape = RoundedCornerShape(999.dp), color = RedSoft) {
                 Text("Secure", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = Red)
             }
