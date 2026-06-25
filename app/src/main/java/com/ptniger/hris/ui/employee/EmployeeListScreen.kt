@@ -21,6 +21,7 @@ import com.ptniger.hris.ui.theme.*
 @Composable
 fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: EmployeeViewModel = viewModel()) {
     var search by remember { mutableStateOf("") }
+    var showAddMemberDialog by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.loadAll() }
     val employees by vm.employees.collectAsState()
     
@@ -91,14 +92,62 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
             item { Spacer(Modifier.height(100.dp)) }
         }
     }
-    // FAB — hanya tampil untuk HR, bukan Manager
-    if (!isManager) {
-        Box(Modifier.fillMaxSize().padding(end = 18.dp, bottom = 90.dp), contentAlignment = Alignment.BottomEnd) {
-            FloatingActionButton(onClick = { onNavigateToForm("new") }, containerColor = Blue, contentColor = Surface, shape = RoundedCornerShape(16.dp)) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah", modifier = Modifier.size(24.dp))
-            }
+    // FAB — HR add new employee, Manager assign employee
+    Box(Modifier.fillMaxSize().padding(end = 18.dp, bottom = 90.dp), contentAlignment = Alignment.BottomEnd) {
+        FloatingActionButton(
+            onClick = { 
+                if (isManager) showAddMemberDialog = true 
+                else onNavigateToForm("new") 
+            }, 
+            containerColor = Blue, 
+            contentColor = Surface, 
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(if (isManager) Icons.Default.PersonAdd else Icons.Default.Add, contentDescription = "Tambah", modifier = Modifier.size(24.dp))
         }
     }
+
+    if (showAddMemberDialog) {
+        val availableMembers = employees.filter { it.managerId.isEmpty() && it.employeeId != user.employeeId }
+        AlertDialog(
+            onDismissRequest = { showAddMemberDialog = false },
+            title = { Text("Pilih Anggota Tim") },
+            text = {
+                Column {
+                    Text("Pilih karyawan yang belum memiliki manajer untuk ditambahkan ke tim Anda.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(modifier = Modifier.fillMaxHeight(0.6f)) {
+                        items(availableMembers) { emp ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable {
+                                    vm.save(emp.copy(managerId = user.userId), false)
+                                    showAddMemberDialog = false
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column {
+                                        Text(emp.name, style = MaterialTheme.typography.titleSmall)
+                                        Text("${emp.department} · ${emp.position}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                    }
+                                }
+                            }
+                        }
+                        if (availableMembers.isEmpty()) {
+                            item { 
+                                Text("Semua karyawan sudah memiliki manajer atau tidak ada karyawan lain.", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall) 
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAddMemberDialog = false }) { Text("Tutup") }
+            }
+        )
+    }
+
     } // Box
 } // EmployeeListScreen
 

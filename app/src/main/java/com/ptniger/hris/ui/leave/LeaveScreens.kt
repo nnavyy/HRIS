@@ -311,7 +311,14 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
 fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel = viewModel()) {
     val pending by vm.pending.collectAsState()
     val message by vm.message.collectAsState()
-    LaunchedEffect(Unit) { vm.loadPending(user.departmentId) }
+    LaunchedEffect(Unit) {
+        val effectiveRole = user.primaryRole.ifEmpty { user.role }
+        if (effectiveRole == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN || effectiveRole == com.ptniger.hris.utils.Constants.Role.HR) {
+            vm.loadPending("")
+        } else {
+            vm.loadPending(user.departmentId)
+        }
+    }
 
     Column(
         Modifier

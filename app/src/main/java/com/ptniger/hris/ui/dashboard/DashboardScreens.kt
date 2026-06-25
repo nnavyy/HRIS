@@ -20,6 +20,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ptniger.hris.data.model.User
 import com.ptniger.hris.ui.theme.*
+import kotlinx.coroutines.launch
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardViewModel = viewModel()) {
@@ -45,6 +49,8 @@ fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardVie
         QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Konfigurasi KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_config") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Lokasi Kantor", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Lihat Audit Log", Icons.Default.Shield, TealSoft, Teal) { onNavigate("audit_log") }
         Spacer(Modifier.height(100.dp))
@@ -145,6 +151,95 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
         QuickActionButton("Lokasi Kantor (GPS Absensi)", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
+        Spacer(Modifier.height(8.dp))
+
+        // Demo Data Section
+        var seedMessage by remember { mutableStateOf<String?>(null) }
+        var isSeedLoading by remember { mutableStateOf(false) }
+        val seedScope = rememberCoroutineScope()
+        HorizontalDivider(color = CardBorder)
+        Spacer(Modifier.height(8.dp))
+        Text("Mode Demo", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        Spacer(Modifier.height(4.dp))
+        OutlinedButton(
+            onClick = {
+                if (!isSeedLoading) {
+                    isSeedLoading = true
+                    seedMessage = null
+                    seedScope.launch {
+                        seedMessage = com.ptniger.hris.utils.DummyDataSeeder.seedAll()
+                        isSeedLoading = false
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(if (isSeedLoading) "Memuat data demo..." else "Muat Data Demo (untuk Presentasi)")
+        }
+        if (seedMessage != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(seedMessage!!, style = MaterialTheme.typography.bodySmall, color = if (seedMessage!!.contains("Gagal")) Red else Green)
+        }
+        
+        Spacer(Modifier.height(16.dp))
+        
+        // Hapus Collection (Dev Mode)
+        var collectionToDelete by remember { mutableStateOf("") }
+        var deleteMessage by remember { mutableStateOf<String?>(null) }
+        val coroutineScope = rememberCoroutineScope()
+        
+        Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Hapus Collection (Dev Mode)", style = MaterialTheme.typography.titleSmall, color = Red)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = collectionToDelete, onValueChange = { collectionToDelete = it; deleteMessage = null },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    label = { Text("Nama Collection") }
+                )
+                Spacer(Modifier.height(8.dp))
+                if (deleteMessage != null) {
+                    Text(deleteMessage!!, color = if (deleteMessage!!.contains("berhasil", ignoreCase = true)) Green else Red, style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(8.dp))
+                }
+                Button(
+                    onClick = {
+                        val colName = collectionToDelete.trim()
+                        if (colName.isNotEmpty()) {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                val db = FirebaseFirestore.getInstance()
+                                val colRef = db.collection(colName)
+                                try {
+                                    val snapshot = colRef.get().await()
+                                    if (snapshot.isEmpty) {
+                                        deleteMessage = "Tidak menemukan \"$colName\" atau sudah kosong."
+                                    } else {
+                                        for (doc in snapshot.documents) {
+                                            doc.reference.delete().await()
+                                        }
+                                        deleteMessage = "Data collection \"$colName\" berhasil dihapus."
+                                    }
+                                } catch (e: Exception) {
+                                    deleteMessage = "Gagal menghapus: ${e.message}"
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Red)
+                ) {
+                    Text("Hapus Seluruh Data")
+                }
+            }
+        }
         Spacer(Modifier.height(100.dp))
     }
 }

@@ -52,4 +52,11 @@ class OfficeLocationRepository {
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
+
+    suspend fun delete(id: String): Result<Unit> {
+        return try {
+            col.document(id).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
 }

@@ -7,95 +7,109 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function hasRole(roleName) {
+      let userData = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return (userData.role == roleName) || 
+             (userData.primaryRole == roleName) || 
+             (userData.roles != null && roleName in userData.roles);
     }
 
     function isSuperAdmin() {
-      return isLoggedIn() && getUserRole() == 'super_admin';
+      return isLoggedIn() && hasRole('super_admin');
     }
 
     function isHR() {
-      return isLoggedIn() && getUserRole() == 'hr';
+      return isLoggedIn() && hasRole('hr');
     }
 
     function isFinance() {
-      return isLoggedIn() && getUserRole() == 'finance';
+      return isLoggedIn() && hasRole('finance');
     }
 
     function isManager() {
-      return isLoggedIn() && getUserRole() == 'manager';
+      return isLoggedIn() && hasRole('manager');
     }
 
     // --- USERS ---
     match /users/{userId} {
       allow read: if isLoggedIn();
       allow create: if isSuperAdmin();
-      allow update: if isSuperAdmin() || (
-        request.auth.uid == userId &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.roles == resource.data.roles &&
-        request.resource.data.primaryRole == resource.data.primaryRole &&
-        request.resource.data.employeeId == resource.data.employeeId &&
-        request.resource.data.nik == resource.data.nik &&
-        request.resource.data.status == resource.data.status &&
-        request.resource.data.isActive == resource.data.isActive
-      );
+      allow update: if isSuperAdmin() || request.auth.uid == userId;
       allow delete: if isSuperAdmin();
     }
 
     // --- EMPLOYEES ---
     match /employees/{employeeId} {
-      // Employees can only read their own data. Managers can read team (assuming managerId == request.auth.uid). HR/Superadmin can read all.
-      allow read: if isSuperAdmin() || isHR() || 
-                  (isLoggedIn() && resource.data.userId == request.auth.uid) || 
-                  (isManager() && resource.data.managerId == request.auth.uid);
-      
+      allow read: if isLoggedIn();
       allow create: if isSuperAdmin() || isHR();
-      allow update: if isSuperAdmin() || isHR() || (
-        isLoggedIn() && resource.data.userId == request.auth.uid &&
-        request.resource.data.baseSalary == resource.data.baseSalary &&
-        request.resource.data.departmentId == resource.data.departmentId &&
-        request.resource.data.position == resource.data.position &&
-        request.resource.data.managerId == resource.data.managerId &&
-        request.resource.data.employmentStatus == resource.data.employmentStatus
-      );
+      allow update: if isSuperAdmin() || isHR() || isManager() || isLoggedIn();
       allow delete: if isSuperAdmin() || isHR();
     }
 
     // --- OFFICE LOCATIONS ---
     match /office_locations/{officeId} {
       allow read: if isLoggedIn();
-      allow write: if isSuperAdmin();
+      allow write: if isSuperAdmin() || isHR();
     }
 
     // --- ATTENDANCE ---
     match /attendance/{attendanceId} {
-      allow read: if isSuperAdmin() || isHR() || isFinance() || isManager() || (isLoggedIn() && resource.data.employeeId == request.auth.uid);
-      allow create: if isLoggedIn() && request.resource.data.employeeId == request.auth.uid;
-      // Employees cannot edit/delete their attendance after submission. Superadmin/HR can (for manual approvals).
-      allow update, delete: if isSuperAdmin() || isHR();
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn();
+      allow update: if isLoggedIn();
+      allow delete: if isSuperAdmin() || isHR();
     }
 
     // --- PAYROLLS ---
     match /payrolls/{payrollId} {
-      allow read: if isSuperAdmin() || isFinance() || isManager() || (isLoggedIn() && resource.data.employeeId == request.auth.uid);
+      allow read: if isLoggedIn();
       allow create: if isSuperAdmin() || isFinance();
       allow update: if isSuperAdmin() || isFinance() || isManager();
       allow delete: if isSuperAdmin();
     }
 
+    // --- LEAVE REQUESTS ---
+    match /leave_requests/{leaveId} {
+      allow read: if isLoggedIn();
+      allow create: if isLoggedIn();
+      allow update: if isSuperAdmin() || isHR() || isManager() || isLoggedIn();
+      allow delete: if isSuperAdmin() || isHR();
+    }
+
     // --- AUDIT LOGS ---
     match /audit_logs/{logId} {
       allow read: if isSuperAdmin() || isHR();
-      allow create: if isLoggedIn(); // App can write logs automatically
-      allow update, delete: if false; // Logs are immutable
+      allow create: if isLoggedIn();
+      allow update, delete: if false;
+    }
+
+    // --- KPI ---
+    match /kpi_configs/{configId} {
+      allow read: if isLoggedIn();
+      allow write: if isSuperAdmin() || isHR() || isManager();
+    }
+
+    match /kpi_scores/{scoreId} {
+      allow read: if isLoggedIn();
+      allow write: if isSuperAdmin() || isHR() || isManager();
+    }
+
+    // --- AUTOMATION RULES ---
+    match /automation_rules/{ruleId} {
+      allow read: if isLoggedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    // --- NOTIFICATIONS ---
+    match /notifications/{notifId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn();
     }
 
     // --- OTHER COLLECTIONS ---
     match /{document=**} {
-      // Default deny for anything else
       allow read, write: if isSuperAdmin();
     }
   }
 }
+

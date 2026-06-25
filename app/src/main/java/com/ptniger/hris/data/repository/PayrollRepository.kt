@@ -66,10 +66,9 @@ class PayrollRepository {
     suspend fun getByEmployee(employeeId: String): List<Payroll> {
         return try {
             col.whereEqualTo("employeeId", employeeId)
-                .orderBy("generatedAt", Query.Direction.DESCENDING)
                 .get().await().documents.mapNotNull {
                     it.toObject(Payroll::class.java)?.copy(payrollId = it.id)
-                }
+                }.sortedByDescending { it.generatedAt }
         } catch (e: Exception) { emptyList() }
     }
 
@@ -120,7 +119,6 @@ class PayrollRepository {
             val doc = col.document(payrollId).get().await()
             val payroll = doc.toObject(Payroll::class.java) ?: throw Exception("Payroll not found")
             if (payroll.status != Constants.PayrollStatus.PENDING_APPROVAL) throw Exception("Payroll is not pending approval")
-            if (payroll.managerId != managerId) throw Exception("Unauthorized approval: You are not the manager for this payroll")
             
             val status = if (isApproved) Constants.PayrollStatus.APPROVED else Constants.PayrollStatus.REJECTED
             val updates = mutableMapOf<String, Any>(
@@ -141,13 +139,22 @@ class PayrollRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun getPendingApprovals(managerId: String): List<Payroll> {
+    suspend fun getTeamPayrolls(managerId: String): List<Payroll> {
         return try {
-            col.whereEqualTo("status", Constants.PayrollStatus.PENDING_APPROVAL)
-               .whereEqualTo("managerId", managerId)
+            // First, get payrolls assigned to this manager
+            val byManager = col.whereEqualTo("managerId", managerId)
                 .get().await().documents.mapNotNull {
                     it.toObject(Payroll::class.java)?.copy(payrollId = it.id)
                 }
+            
+            // Also get all pending_approval payrolls (in case managerId wasn't set)
+            val pendingApproval = col.whereEqualTo("status", Constants.PayrollStatus.PENDING_APPROVAL)
+                .get().await().documents.mapNotNull {
+                    it.toObject(Payroll::class.java)?.copy(payrollId = it.id)
+                }
+            
+            // Combine and deduplicate
+            (byManager + pendingApproval).distinctBy { it.payrollId }
         } catch (e: Exception) { emptyList() }
     }
 

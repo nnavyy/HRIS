@@ -225,6 +225,7 @@ fun AutomationScreen(user: User, onBack: () -> Unit = {}) {
 @Composable
 fun AccountManagementScreen(user: User, onBack: () -> Unit = {}) {
     val repo = remember { com.ptniger.hris.data.repository.AuthRepository() }
+    val officeRepo = remember { com.ptniger.hris.data.repository.OfficeLocationRepository() }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -233,11 +234,20 @@ fun AccountManagementScreen(user: User, onBack: () -> Unit = {}) {
     var password by remember { mutableStateOf("") }
     var nik by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(Constants.Role.EMPLOYEE) }
-    var expanded by remember { mutableStateOf(false) }
+    var roleExpanded by remember { mutableStateOf(false) }
+    var selectedDept by remember { mutableStateOf("") }
+    var deptExpanded by remember { mutableStateOf(false) }
+    var selectedOfficeId by remember { mutableStateOf("") }
+    var officeExpanded by remember { mutableStateOf(false) }
+    var officeLocations by remember { mutableStateOf<List<com.ptniger.hris.data.model.OfficeLocation>>(emptyList()) }
 
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        officeLocations = officeRepo.getActiveLocations()
+    }
 
     val roles = listOf(
         Constants.Role.EMPLOYEE,
@@ -246,6 +256,12 @@ fun AccountManagementScreen(user: User, onBack: () -> Unit = {}) {
         Constants.Role.MANAGER,
         Constants.Role.SUPER_ADMIN
     )
+    val depts = listOf(
+        "Engineering", "Marketing", "Finance", "HR",
+        "Operations", "Sales", "IT", "Legal", "Procurement"
+    )
+    // Show department dropdown if role is Manager, HR, or Employee
+    val needsDept = selectedRole in listOf(Constants.Role.MANAGER, Constants.Role.EMPLOYEE, Constants.Role.HR)
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -284,54 +300,92 @@ fun AccountManagementScreen(user: User, onBack: () -> Unit = {}) {
                     label = { Text("Password Sementara") }, modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
-                
+
                 // Role Dropdown
-                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                ExposedDropdownMenuBox(expanded = roleExpanded, onExpandedChange = { roleExpanded = !roleExpanded }) {
                     OutlinedTextField(
                         value = RoleManager.getRoleDisplayName(selectedRole),
                         onValueChange = {}, readOnly = true,
                         label = { Text("Pilih Role Akses") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = roleExpanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
-                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    ExposedDropdownMenu(expanded = roleExpanded, onDismissRequest = { roleExpanded = false }) {
                         roles.forEach { role ->
                             DropdownMenuItem(
                                 text = { Text(RoleManager.getRoleDisplayName(role)) },
-                                onClick = { selectedRole = role; expanded = false }
+                                onClick = { selectedRole = role; roleExpanded = false }
                             )
                         }
                     }
                 }
-                
+
+                // Departemen (tampil jika role Manager/Employee/HR)
+                if (needsDept) {
+                    Spacer(Modifier.height(12.dp))
+                    ExposedDropdownMenuBox(expanded = deptExpanded, onExpandedChange = { deptExpanded = !deptExpanded }) {
+                        OutlinedTextField(
+                            value = selectedDept.ifEmpty { "Pilih Departemen" },
+                            onValueChange = {}, readOnly = true,
+                            label = { Text(if (selectedRole == Constants.Role.MANAGER) "Departemen yang Dikelola" else "Departemen") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = deptExpanded) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(expanded = deptExpanded, onDismissRequest = { deptExpanded = false }) {
+                            depts.forEach { dept ->
+                                DropdownMenuItem(text = { Text(dept) }, onClick = { selectedDept = dept; deptExpanded = false })
+                            }
+                        }
+                    }
+                }
+
+                // Lokasi Kantor
+                Spacer(Modifier.height(12.dp))
+                ExposedDropdownMenuBox(expanded = officeExpanded, onExpandedChange = { officeExpanded = !officeExpanded }) {
+                    OutlinedTextField(
+                        value = officeLocations.find { it.id == selectedOfficeId }?.name ?: "Pilih Lokasi Kantor (Opsional)",
+                        onValueChange = {}, readOnly = true,
+                        label = { Text("Lokasi Kantor") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = officeExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(expanded = officeExpanded, onDismissRequest = { officeExpanded = false }) {
+                        DropdownMenuItem(text = { Text("— Tidak ada —") }, onClick = { selectedOfficeId = ""; officeExpanded = false })
+                        officeLocations.forEach { loc ->
+                            DropdownMenuItem(text = { Text(loc.name) }, onClick = { selectedOfficeId = loc.id; officeExpanded = false })
+                        }
+                    }
+                }
+
                 Spacer(Modifier.height(24.dp))
                 Button(
                     onClick = {
                         if (fullName.isEmpty() || email.isEmpty() || password.isEmpty() || nik.isEmpty()) {
-                            errorMessage = "Harap isi semua field"
-                            return@Button
+                            errorMessage = "Harap isi semua field"; return@Button
                         }
-                        isLoading = true
-                        errorMessage = null
-                        successMessage = null
-                        
+                        if (needsDept && selectedDept.isEmpty()) {
+                            errorMessage = "Harap pilih departemen untuk role ini"; return@Button
+                        }
+                        isLoading = true; errorMessage = null; successMessage = null
+
                         val newUser = User(
                             name = fullName.split(" ").firstOrNull() ?: fullName,
-                            fullName = fullName,
-                            email = email,
-                            nik = nik,
+                            fullName = fullName, email = email, nik = nik,
                             role = selectedRole,
                             roles = listOf("employee", selectedRole).distinct(),
                             primaryRole = selectedRole,
+                            departmentId = selectedDept,
+                            officeId = selectedOfficeId,
                             isActive = true
                         )
-                        
+
                         scope.launch {
                             val res = repo.createUserByAdmin(context, email, password, newUser)
                             isLoading = false
                             if (res.isSuccess) {
                                 successMessage = "Akun berhasil dibuat!"
                                 fullName = ""; email = ""; password = ""; nik = ""
+                                selectedDept = ""; selectedOfficeId = ""
                             } else {
                                 errorMessage = res.exceptionOrNull()?.message ?: "Gagal membuat akun"
                             }
@@ -340,9 +394,7 @@ fun AccountManagementScreen(user: User, onBack: () -> Unit = {}) {
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(12.dp),
                     enabled = !isLoading
-                ) {
-                    Text(if (isLoading) "Memproses..." else "Buat Akun")
-                }
+                ) { Text(if (isLoading) "Memproses..." else "Buat Akun") }
             }
         }
         Spacer(Modifier.height(100.dp))

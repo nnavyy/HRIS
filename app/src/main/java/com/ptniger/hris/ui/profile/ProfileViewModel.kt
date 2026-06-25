@@ -1,19 +1,26 @@
 package com.ptniger.hris.ui.profile
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import com.ptniger.hris.utils.Constants
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
 class ProfileViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
     
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
@@ -25,14 +32,50 @@ class ProfileViewModel : ViewModel() {
     private val _photoUrl = MutableStateFlow("")
     val photoUrl: StateFlow<String> = _photoUrl
 
-    fun uploadProfilePicture(userId: String, uri: Uri) {
+    companion object {
+        // Same Cloudinary config as AttendanceRepository
+        private const val CLOUD_NAME = "dxn0pj04j"
+        private const val UPLOAD_PRESET = "hris_upload"
+    }
+
+    fun uploadProfilePicture(userId: String, uri: Uri, context: Context? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val ref = storage.reference.child("profile_pictures/$userId.jpg")
-                ref.putFile(uri).await()
-                val downloadUrl = ref.downloadUrl.await().toString()
+                // Get the context from the application
+                val appContext = context ?: throw Exception("Context diperlukan untuk upload")
                 
+                // Read image bytes
+                val inputStream = appContext.contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes() ?: throw Exception("Tidak bisa membaca gambar")
+                inputStream.close()
+
+                // Upload to Cloudinary
+                val downloadUrl = withContext(Dispatchers.IO) {
+                    val client = OkHttpClient()
+                    val requestBody = MultipartBody.Builder()
+                        .setType(MultipartBody.FORM)
+                        .addFormDataPart("file", "profile_$userId.jpg", bytes.toRequestBody("image/jpeg".toMediaTypeOrNull()))
+                        .addFormDataPart("upload_preset", UPLOAD_PRESET)
+                        .addFormDataPart("public_id", "profile_pictures/$userId")
+                        .build()
+
+                    val request = Request.Builder()
+                        .url("https://api.cloudinary.com/v1_1/$CLOUD_NAME/image/upload")
+                        .post(requestBody)
+                        .build()
+
+                    val response = client.newCall(request).execute()
+                    val responseBody = response.body?.string()
+                    if (response.isSuccessful && responseBody != null) {
+                        val json = JSONObject(responseBody)
+                        json.getString("secure_url")
+                    } else {
+                        throw Exception("Cloudinary upload failed: $responseBody")
+                    }
+                }
+
+                // Save URL to Firestore (not the image itself, just the URL)
                 db.collection(Constants.Collections.USERS).document(userId)
                     .update("photoUrl", downloadUrl).await()
                 

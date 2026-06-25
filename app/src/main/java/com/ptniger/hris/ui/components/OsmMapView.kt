@@ -9,8 +9,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun OsmMapView(
     modifier: Modifier = Modifier,
-    initialLat: Double = -6.2088,
-    initialLng: Double = 106.8456,
+    targetLat: Double = -6.2088,
+    targetLng: Double = 106.8456,
     onLocationSelected: (Double, Double) -> Unit
 ) {
     val context = LocalContext.current
@@ -27,10 +27,11 @@ fun OsmMapView(
                 setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
                 setMultiTouchControls(true)
                 controller.setZoom(15.0)
-                controller.setCenter(org.osmdroid.util.GeoPoint(initialLat, initialLng))
+                controller.setCenter(org.osmdroid.util.GeoPoint(targetLat, targetLng))
                 
                 val marker = org.osmdroid.views.overlay.Marker(this)
-                marker.position = org.osmdroid.util.GeoPoint(initialLat, initialLng)
+                marker.id = "main_marker"
+                marker.position = org.osmdroid.util.GeoPoint(targetLat, targetLng)
                 marker.setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
                 overlays.add(marker)
 
@@ -54,7 +55,14 @@ fun OsmMapView(
         },
         modifier = modifier
     ) { view ->
-        // view updates
+        val geoPoint = org.osmdroid.util.GeoPoint(targetLat, targetLng)
+        view.controller.animateTo(geoPoint)
+        
+        val marker = view.overlays.filterIsInstance<org.osmdroid.views.overlay.Marker>().firstOrNull { it.id == "main_marker" }
+        if (marker != null) {
+            marker.position = geoPoint
+            view.invalidate()
+        }
     }
     
     DisposableEffect(lifecycleOwner) {

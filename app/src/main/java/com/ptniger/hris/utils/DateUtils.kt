@@ -45,4 +45,16 @@ object DateUtils {
             } else 0
         } catch (e: Exception) { 0 }
     }
+
+    fun calculateOvertimeHours(checkOutTime: String, threshold: String = "17:00"): Double {
+        return try {
+            val checkOut = timeFormat.parse(checkOutTime)
+            val limit = timeFormat.parse(threshold)
+            if (checkOut != null && limit != null && checkOut.after(limit)) {
+                val diffMinutes = (checkOut.time - limit.time) / 60000
+                // Convert minutes to hours. E.g., 90 minutes = 1.5 hours
+                Math.round((diffMinutes / 60.0) * 10.0) / 10.0
+            } else 0.0
+        } catch (e: Exception) { 0.0 }
+    }
 }

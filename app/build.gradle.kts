@@ -47,6 +47,7 @@ android {
 }
 
 dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     // MultiDex support
     implementation("androidx.multidex:multidex:2.0.1")

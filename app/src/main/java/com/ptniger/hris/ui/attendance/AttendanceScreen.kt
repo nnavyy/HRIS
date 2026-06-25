@@ -91,7 +91,7 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
 
         val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             if (success && imageUri != null && locationCoords != null) {
-                vm.submitAttendance(empId, imageUri!!, locationCoords!!.first, locationCoords!!.second, currentClockType)
+                vm.submitAttendance(empId, imageUri!!, locationCoords!!.first, locationCoords!!.second, currentClockType, context)
             } else {
                 vm.clearMessage()
             }

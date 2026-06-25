@@ -34,6 +34,9 @@ object RoleManager {
                 }
                 Constants.Role.MANAGER -> {
                     // Manager needs quick access to team management, leave approval, and attendance monitor
+                    items.add(NavItem("attendance", "AbsenKu", "clock"))
+                    items.add(NavItem("leave_request", "CutiKu", "calendar"))
+                    items.add(NavItem("salary_slip", "GajiKu", "payments"))
                     items.add(NavItem("employees", "Tim Saya", "people"))
                     items.add(NavItem("leave_approval", "Approval", "calendar"))
                     items.add(NavItem("attendance_monitor", "Monitor", "clock"))

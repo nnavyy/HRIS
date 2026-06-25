@@ -28,6 +28,10 @@ import com.ptniger.hris.data.model.User
 import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.Constants
 import com.ptniger.hris.utils.RoleManager
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun LoginScreen(

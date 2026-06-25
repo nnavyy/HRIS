@@ -35,7 +35,7 @@ class EmployeeViewModel : ViewModel() {
         viewModelScope.launch { 
             _isLoading.value = true
             _employees.value = repo.getAll()
-            _officeLocations.value = officeRepo.getActiveLocations()
+            _officeLocations.value = officeRepo.getAll()
             _users.value = authRepo.getAllUsers()
             _isLoading.value = false 
         } 

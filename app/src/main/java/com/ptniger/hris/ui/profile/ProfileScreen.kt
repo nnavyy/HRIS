@@ -52,7 +52,7 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, vm: ProfileViewModel = viewM
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
-            vm.uploadProfilePicture(user.userId, uri)
+            vm.uploadProfilePicture(user.userId, uri, context)
         }
     }
 

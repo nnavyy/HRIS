@@ -22,15 +22,22 @@ import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.DateUtils
 import com.ptniger.hris.utils.KpiCalculator
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KpiConfigScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = viewModel()) {
     var dept by remember { mutableStateOf("") }
+    var deptExpanded by remember { mutableStateOf(false) }
     var kpiName by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
     val configs by vm.configs.collectAsState()
     val message by vm.message.collectAsState()
     LaunchedEffect(Unit) { vm.loadConfigs() }
+
+    val depts = listOf(
+        "Engineering", "Marketing", "Finance", "HR",
+        "Operations", "Sales", "IT", "Legal", "Procurement"
+    )
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -40,7 +47,21 @@ fun KpiConfigScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = view
         Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 2.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Tambah KPI Baru", style = MaterialTheme.typography.titleMedium)
-                OutlinedTextField(dept, { dept = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), label = { Text("Departemen") }, singleLine = true)
+                ExposedDropdownMenuBox(expanded = deptExpanded, onExpandedChange = { deptExpanded = !deptExpanded }) {
+                    OutlinedTextField(
+                        value = dept.ifEmpty { "Pilih Departemen" },
+                        onValueChange = {}, readOnly = true,
+                        label = { Text("Departemen") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = deptExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    ExposedDropdownMenu(expanded = deptExpanded, onDismissRequest = { deptExpanded = false }) {
+                        depts.forEach { d ->
+                            DropdownMenuItem(text = { Text(d) }, onClick = { dept = d; deptExpanded = false })
+                        }
+                    }
+                }
                 OutlinedTextField(kpiName, { kpiName = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), label = { Text("Nama KPI") }, singleLine = true)
                 OutlinedTextField(weight, { weight = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), label = { Text("Bobot (0.0-1.0)") }, singleLine = true)
                 OutlinedTextField(desc, { desc = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), label = { Text("Deskripsi") }, singleLine = true)

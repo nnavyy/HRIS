@@ -50,7 +50,8 @@ class AttendanceViewModel : ViewModel() {
         imageUri: android.net.Uri,
         latitude: Double,
         longitude: Double,
-        clockType: String
+        clockType: String,
+        context: android.content.Context
     ) {
         if (employeeId.isEmpty()) {
             _state.value = _state.value.copy(message = "Employee ID belum terhubung")
@@ -61,13 +62,18 @@ class AttendanceViewModel : ViewModel() {
             try {
                 val officeRepo = com.ptniger.hris.data.repository.OfficeLocationRepository()
                 val employeeRepo = com.ptniger.hris.data.repository.EmployeeRepository()
-                val employee = employeeRepo.getById(employeeId)
+                // Try by document ID first, then by userId field
+                var employee = employeeRepo.getById(employeeId)
+                if (employee == null) {
+                    employee = employeeRepo.getByUserId(employeeId)
+                }
                 
                 val office = if (employee?.officeId?.isNotEmpty() == true) {
                     officeRepo.getById(employee.officeId)
                 } else {
-                    val activeOffices = officeRepo.getActiveLocations()
-                    activeOffices.firstOrNull()
+                    // Fallback: get any active office
+                    val allOffices = officeRepo.getAll()
+                    allOffices.firstOrNull { it.isActive }
                 }
 
                 if (office == null) {
@@ -79,8 +85,8 @@ class AttendanceViewModel : ViewModel() {
                 android.location.Location.distanceBetween(latitude, longitude, office.latitude, office.longitude, results)
                 val distance = results[0]
 
-                if (distance > 50) {
-                    _state.value = _state.value.copy(message = "Absensi gagal: Anda berada di luar jangkauan (${distance.toInt()} meter). Harus dalam 50 meter dari kantor.", isLoading = false)
+                if (distance > office.allowedRadiusMeters) {
+                    _state.value = _state.value.copy(message = "Absensi gagal: Anda berada di luar jangkauan (${distance.toInt()} meter). Harus dalam ${office.allowedRadiusMeters.toInt()} meter dari kantor.", isLoading = false)
                     return@launch
                 }
 
@@ -100,17 +106,17 @@ class AttendanceViewModel : ViewModel() {
                     longitude = longitude
                 )
 
-                repo.submitAttendance(attendance, imageUri, office).fold(
+                repo.submitAttendance(attendance, imageUri, office, context).fold(
                     onSuccess = {
                         _state.value = _state.value.copy(message = "Absensi berhasil!", isLoading = false)
                         loadTodayAttendance(employeeId)
                     },
                     onFailure = {
-                        _state.value = _state.value.copy(message = "Gagal: ${it.message}", isLoading = false)
+                        _state.value = _state.value.copy(message = "Gagal: ${it.message ?: it.javaClass.simpleName}", isLoading = false)
                     }
                 )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(message = "Error: ${e.message}", isLoading = false)
+                _state.value = _state.value.copy(message = "Error: ${e.message ?: e.javaClass.simpleName}", isLoading = false)
             }
         }
     }
