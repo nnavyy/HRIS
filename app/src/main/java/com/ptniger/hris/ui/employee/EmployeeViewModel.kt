@@ -53,6 +53,35 @@ class EmployeeViewModel : ViewModel() {
         }
     }
 
+    fun importFromCsv(context: android.content.Context, uri: android.net.Uri) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _message.value = "Membaca file CSV..."
+            try {
+                val parsedEmployees = com.ptniger.hris.utils.CsvParser.parseEmployees(context, uri)
+                if (parsedEmployees.isEmpty()) {
+                    _message.value = "File CSV kosong atau format tidak sesuai."
+                } else {
+                    _message.value = "Menyimpan ${parsedEmployees.size} data karyawan..."
+                    val result = repo.batchAdd(parsedEmployees)
+                    result.fold(
+                        onSuccess = { count ->
+                            _message.value = "Berhasil import $count karyawan."
+                            loadAll()
+                        },
+                        onFailure = {
+                            _message.value = "Gagal menyimpan data: ${it.message}"
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                _message.value = "Gagal memproses CSV: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun delete(id: String) {
         viewModelScope.launch {
             repo.delete(id).fold(

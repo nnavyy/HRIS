@@ -1,5 +1,7 @@
 package com.ptniger.hris.utils
 
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -56,5 +58,59 @@ object DateUtils {
                 Math.round((diffMinutes / 60.0) * 10.0) / 10.0
             } else 0.0
         } catch (e: Exception) { 0.0 }
+    }
+
+    /**
+     * Gets approximate server time by writing a temporary doc with serverTimestamp
+     * and reading back the result. Returns server epoch millis.
+     * Falls back to local time if fetch fails.
+     */
+    suspend fun getServerTimeMillis(): Long {
+        return try {
+            val db = FirebaseFirestore.getInstance()
+            val tempRef = db.collection("_server_time_check").document("probe")
+            tempRef.set(mapOf("ts" to com.google.firebase.firestore.FieldValue.serverTimestamp())).await()
+            val doc = tempRef.get(com.google.firebase.firestore.Source.SERVER).await()
+            val serverTs = doc.getTimestamp("ts")
+            tempRef.delete().await() // cleanup
+            serverTs?.toDate()?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
+
+    /**
+     * Returns formatted time string from server time.
+     */
+    suspend fun serverNowTime(): String {
+        val serverMillis = getServerTimeMillis()
+        return timeFormat.format(Date(serverMillis))
+    }
+
+    /**
+     * Returns formatted date string from server time.
+     */
+    suspend fun serverToday(): String {
+        val serverMillis = getServerTimeMillis()
+        return dateFormat.format(Date(serverMillis))
+    }
+
+    /**
+     * Checks if there's a significant time difference between device and server.
+     * Returns the offset in milliseconds.
+     * Positive means device is ahead of server. Negative means device is behind.
+     */
+    suspend fun getDeviceServerOffsetMs(): Long {
+        val deviceTime = System.currentTimeMillis()
+        val serverTime = getServerTimeMillis()
+        return deviceTime - serverTime
+    }
+
+    /**
+     * Checks if device time has been tampered with (offset > 2 minutes).
+     */
+    suspend fun isTimeTampered(thresholdMs: Long = 2 * 60 * 1000): Boolean {
+        val offset = Math.abs(getDeviceServerOffsetMs())
+        return offset > thresholdMs
     }
 }

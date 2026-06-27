@@ -49,11 +49,40 @@ class EmployeeRepository {
         } catch (e: Exception) { null }
     }
 
+    suspend fun getByEmail(email: String): Employee? {
+        return try {
+            val docs = col.whereEqualTo("email", email).get().await()
+            docs.documents.firstOrNull()?.let {
+                it.toObject(Employee::class.java)?.copy(employeeId = it.id)
+            }
+        } catch (e: Exception) { null }
+    }
+
     suspend fun add(employee: Employee): Result<String> {
         return try {
             val docRef = col.add(employee).await()
             Result.success(docRef.id)
         } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun batchAdd(employees: List<Employee>): Result<Int> {
+        return try {
+            var count = 0
+            // Firestore batches can hold up to 500 operations. We will use chunks of 450 to be safe.
+            val chunks = employees.chunked(450)
+            for (chunk in chunks) {
+                val batch = db.batch()
+                for (emp in chunk) {
+                    val docRef = col.document() // Auto ID
+                    batch.set(docRef, emp.copy(employeeId = docRef.id))
+                    count++
+                }
+                batch.commit().await()
+            }
+            Result.success(count)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun update(id: String, employee: Employee): Result<Unit> {

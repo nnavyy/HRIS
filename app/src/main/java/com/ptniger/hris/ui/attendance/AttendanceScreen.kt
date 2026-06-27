@@ -39,7 +39,7 @@ import java.io.File
 @Composable
 fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
     val empId = user.employeeId.ifEmpty { user.userId }
-    LaunchedEffect(Unit) { vm.loadTodayAttendance(empId) }
+    LaunchedEffect(Unit) { vm.loadTodayAttendance(empId, user.email) }
     val state by vm.state.collectAsState()
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
@@ -86,12 +86,16 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
         var imageUri by remember { mutableStateOf<Uri?>(null) }
         var locationCoords by remember { mutableStateOf<Pair<Double, Double>?>(null) }
         var currentClockType by remember { mutableStateOf("") }
+        var isMockDetected by remember { mutableStateOf(false) }
 
         val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+        
+        // Use resolvedEmployeeId from state if available (resolved via email/userId fallback)
+        val resolvedEmpId = if (state.resolvedEmployeeId.isNotEmpty()) state.resolvedEmployeeId else empId
 
         val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             if (success && imageUri != null && locationCoords != null) {
-                vm.submitAttendance(empId, imageUri!!, locationCoords!!.first, locationCoords!!.second, currentClockType, context)
+                vm.submitAttendance(resolvedEmpId, imageUri!!, locationCoords!!.first, locationCoords!!.second, currentClockType, context, isMockDetected, user.email)
             } else {
                 vm.clearMessage()
             }
@@ -113,8 +117,10 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
                     override fun onLocationResult(locationResult: LocationResult) {
                         val loc = locationResult.lastLocation
                         if (loc != null) {
+                            // Anti Fake GPS Detection
+                            isMockDetected = com.ptniger.hris.utils.LocationUtils.isMockLocation(loc)
+                            
                             locationCoords = Pair(loc.latitude, loc.longitude)
-                            // FIX: Buat file di cacheDir/selfies/ sesuai konfigurasi FileProvider
                             val photoFile = createPhotoFile(context)
                             val uri = FileProvider.getUriForFile(
                                 context,

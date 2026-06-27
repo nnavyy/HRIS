@@ -107,8 +107,9 @@ class AttendanceRepository {
                 DateUtils.calculateLateMinutes(attendance.checkIn)
             } else 0
 
-            // 4. Prepare Final Attendance Data
-            val now = DateUtils.nowTime()
+            // 4. Prepare Final Attendance Data — time values already come from server via ViewModel
+            val checkInTime = attendance.checkIn
+            val checkOutTime = attendance.checkOut
             val isCheckIn = attendance.clockType == Constants.AttendanceType.CLOCK_IN
             
             if (isCheckIn) {
@@ -124,7 +125,8 @@ class AttendanceRepository {
                     officeId = office?.id ?: "",
                     officeLatitude = office?.latitude ?: 0.0,
                     officeLongitude = office?.longitude ?: 0.0,
-                    checkIn = now
+                    checkIn = checkInTime,
+                    deviceModel = android.os.Build.MODEL
                 )
                 val ref = col.add(finalAttendance).await()
                 
@@ -141,15 +143,19 @@ class AttendanceRepository {
                 // For Check-Out: Find existing today's record and UPDATE
                 val todayRecord = getTodayAttendance(attendance.employeeId)
                 if (todayRecord != null && todayRecord.attendanceId.isNotEmpty()) {
-                    val overtimeHours = DateUtils.calculateOvertimeHours(now) // Calculate OT
+                    val checkOutNow = checkOutTime.ifEmpty { DateUtils.nowTime() }
+                    val overtimeHours = DateUtils.calculateOvertimeHours(checkOutNow)
                     
                     col.document(todayRecord.attendanceId).update(
                         mapOf(
-                            "checkOut" to now,
+                            "checkOut" to checkOutNow,
                             "overtimeHours" to overtimeHours,
-                            // Optionally save checkout selfie/location if needed, but for now just update time & OT
                             "distanceFromOfficeMeters" to distance,
-                            "isWithinOfficeRadius" to isWithinRadius
+                            "isWithinOfficeRadius" to isWithinRadius,
+                            "isMockLocation" to attendance.isMockLocation,
+                            "serverTimestamp" to attendance.serverTimestamp,
+                            "deviceTimestamp" to attendance.deviceTimestamp,
+                            "isTimeTampered" to attendance.isTimeTampered
                         )
                     ).await()
                     
@@ -158,7 +164,7 @@ class AttendanceRepository {
                             userId = authUid, userName = "Employee ${attendance.employeeId}", actorRole = "employee",
                             action = "CLOCK_OUT", module = "Attendance", targetCollection = Constants.Collections.ATTENDANCE, 
                             targetId = todayRecord.attendanceId, targetUserId = authUid, 
-                            details = "checkOut=$now, overtime=$overtimeHours"
+                            details = "checkOut=$checkOutNow, overtime=$overtimeHours"
                         )
                     }
                     return Result.success(todayRecord.attendanceId)

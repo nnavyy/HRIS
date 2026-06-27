@@ -25,6 +25,12 @@ data class Attendance(
     val distanceFromOfficeMeters: Double = 0.0,
     val isWithinOfficeRadius: Boolean = false,
     
+    // Anti-Fraud Detection
+    val isMockLocation: Boolean = false,
+    val serverTimestamp: Long = 0,
+    val isTimeTampered: Boolean = false,
+    val deviceTimestamp: Long = 0,
+    
     // Device Metadata
     val deviceModel: String = "",
     val deviceId: String = "",

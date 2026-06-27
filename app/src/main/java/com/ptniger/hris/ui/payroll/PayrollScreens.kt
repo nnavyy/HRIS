@@ -187,6 +187,7 @@ fun PayrollScreen(user: User, onBack: () -> Unit = {}, vm: PayrollViewModel = vi
 @Composable
 fun SalarySlipScreen(user: User, onBack: () -> Unit = {}, vm: PayrollViewModel = viewModel()) {
     val payrolls by vm.payrolls.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     LaunchedEffect(Unit) { vm.loadSlipForUser(user.employeeId, user.userId) }
 
@@ -198,6 +199,28 @@ fun SalarySlipScreen(user: User, onBack: () -> Unit = {}, vm: PayrollViewModel =
         if (payrolls.isEmpty()) Text("Belum ada slip gaji", Modifier.padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         payrolls.forEach { p ->
             SlipCard(p, user)
+            // Download PDF Button
+            if (p.status == Constants.PayrollStatus.PAID || p.status == Constants.PayrollStatus.FINALIZED || p.status == Constants.PayrollStatus.APPROVED) {
+                Button(
+                    onClick = {
+                        com.ptniger.hris.utils.PdfSlipGenerator.generateAndOpen(
+                            context = context,
+                            payroll = p,
+                            employeeName = p.employeeName.ifEmpty { user.fullName.ifEmpty { user.name } },
+                            nik = user.nik,
+                            position = "",
+                            department = user.departmentId
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(44.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Blue)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(16.dp)) // placeholder icon
+                    Spacer(Modifier.width(6.dp))
+                    Text("Unduh Slip Gaji (PDF)")
+                }
+            }
             Spacer(Modifier.height(8.dp))
         }
         Spacer(Modifier.height(100.dp))
@@ -243,3 +266,4 @@ private fun SlipRow(label: String, value: String, color: androidx.compose.ui.gra
         Text(value, style = MaterialTheme.typography.bodySmall, color = color)
     }
 }
+

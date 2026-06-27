@@ -33,20 +33,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = viewModel(),
     onLoginSuccess: (User) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var selectedRole by remember { mutableStateOf(Constants.Role.HR) }
     var showForgotPassword by remember { mutableStateOf(false) }
+    
+    // Login history state
+    val emailHistory = remember { mutableStateOf(com.ptniger.hris.utils.LoginHistoryManager.getHistory(context)) }
+    var expandedHistory by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.loggedInUser) {
-        uiState.loggedInUser?.let { onLoginSuccess(it) }
+        uiState.loggedInUser?.let { 
+            com.ptniger.hris.utils.LoginHistoryManager.saveHistory(context, email)
+            onLoginSuccess(it) 
+        }
     }
 
     if (showForgotPassword) {
@@ -149,14 +158,39 @@ fun LoginScreen(
 
                 Text("Email / NIK", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                 Spacer(Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = email, onValueChange = { email = it.trim() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    placeholder = { Text("email@company.co.id") }
-                )
+                ExposedDropdownMenuBox(
+                    expanded = expandedHistory && email.isEmpty(),
+                    onExpandedChange = { if (email.isEmpty()) expandedHistory = it else expandedHistory = false }
+                ) {
+                    OutlinedTextField(
+                        value = email, onValueChange = { 
+                            email = it.trim()
+                            if (email.isNotEmpty()) expandedHistory = false
+                        },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(16.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        placeholder = { Text("email@company.co.id") }
+                    )
+                    
+                    if (emailHistory.value.isNotEmpty()) {
+                        ExposedDropdownMenu(
+                            expanded = expandedHistory,
+                            onDismissRequest = { expandedHistory = false }
+                        ) {
+                            emailHistory.value.forEach { historyEmail ->
+                                DropdownMenuItem(
+                                    text = { Text(historyEmail) },
+                                    onClick = {
+                                        email = historyEmail
+                                        expandedHistory = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(12.dp))
 

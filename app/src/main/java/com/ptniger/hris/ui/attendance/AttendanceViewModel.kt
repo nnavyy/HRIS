@@ -16,7 +16,7 @@ class AttendanceViewModel : ViewModel() {
     private val _state = MutableStateFlow(AttendanceState())
     val state: StateFlow<AttendanceState> = _state
 
-    fun loadTodayAttendance(employeeId: String) {
+    fun loadTodayAttendance(employeeId: String, userEmail: String = "") {
         if (employeeId.isEmpty()) {
             _state.value = AttendanceState(message = "Employee ID belum terhubung. Hubungi HR.")
             return
@@ -24,8 +24,10 @@ class AttendanceViewModel : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             try {
-                val today = repo.getTodayAttendance(employeeId)
-                val monthly = repo.getMonthlyAttendance(employeeId, DateUtils.currentMonth(), DateUtils.currentYear())
+                // Try finding the correct employee doc ID
+                val resolvedId = resolveEmployeeId(employeeId, userEmail)
+                val today = repo.getTodayAttendance(resolvedId)
+                val monthly = repo.getMonthlyAttendance(resolvedId, DateUtils.currentMonth(), DateUtils.currentYear())
                 val calendar = buildCalendar(monthly)
                 _state.value = AttendanceState(
                     hasCheckedIn = today != null,
@@ -34,7 +36,8 @@ class AttendanceViewModel : ViewModel() {
                     isLate = today?.attendanceStatus == Constants.AttendanceStatus.LATE,
                     attendanceId = today?.attendanceId ?: "",
                     monthlyCalendar = calendar,
-                    isLoading = false
+                    isLoading = false,
+                    resolvedEmployeeId = resolvedId
                 )
             } catch (e: Exception) {
                 _state.value = AttendanceState(
@@ -45,39 +48,83 @@ class AttendanceViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Resolves employee document ID by trying multiple lookup strategies:
+     * 1. Direct document ID
+     * 2. By userId field
+     * 3. By email field (fallback)
+     */
+    private suspend fun resolveEmployeeId(employeeId: String, userEmail: String = ""): String {
+        val employeeRepo = com.ptniger.hris.data.repository.EmployeeRepository()
+        
+        // 1. Try direct doc ID
+        val byId = employeeRepo.getById(employeeId)
+        if (byId != null) return byId.employeeId
+        
+        // 2. Try by userId field
+        val byUserId = employeeRepo.getByUserId(employeeId)
+        if (byUserId != null) return byUserId.employeeId
+        
+        // 3. Try by email
+        if (userEmail.isNotEmpty()) {
+            val byEmail = employeeRepo.getByEmail(userEmail)
+            if (byEmail != null) return byEmail.employeeId
+        }
+        
+        return employeeId // fallback to original
+    }
+
     fun submitAttendance(
         employeeId: String,
         imageUri: android.net.Uri,
         latitude: Double,
         longitude: Double,
         clockType: String,
-        context: android.content.Context
+        context: android.content.Context,
+        isMockDetected: Boolean = false,
+        userEmail: String = ""
     ) {
         if (employeeId.isEmpty()) {
             _state.value = _state.value.copy(message = "Employee ID belum terhubung")
             return
         }
+        
+        // Block mock/fake GPS immediately
+        if (isMockDetected) {
+            _state.value = _state.value.copy(
+                message = "⛔ Absensi DITOLAK: Terdeteksi penggunaan Fake GPS / Lokasi Palsu. Tindakan ini tercatat dan akan dilaporkan.",
+                isLoading = false
+            )
+            return
+        }
+        
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, message = "Memproses absensi...")
             try {
                 val officeRepo = com.ptniger.hris.data.repository.OfficeLocationRepository()
                 val employeeRepo = com.ptniger.hris.data.repository.EmployeeRepository()
-                // Try by document ID first, then by userId field
+                
+                // Resolve employee with multiple fallbacks
                 var employee = employeeRepo.getById(employeeId)
                 if (employee == null) {
                     employee = employeeRepo.getByUserId(employeeId)
                 }
+                if (employee == null && userEmail.isNotEmpty()) {
+                    employee = employeeRepo.getByEmail(userEmail)
+                }
                 
                 val office = if (employee?.officeId?.isNotEmpty() == true) {
                     officeRepo.getById(employee.officeId)
+                } else if (employee == null) {
+                    _state.value = _state.value.copy(message = "Akun Anda belum dihubungkan dengan data Karyawan. Hubungi HR untuk Integrasi Akun Sistem.", isLoading = false)
+                    return@launch
                 } else {
-                    // Fallback: get any active office
-                    val allOffices = officeRepo.getAll()
-                    allOffices.firstOrNull { it.isActive }
+                    val allOffices = officeRepo.getAll().filter { it.isActive }
+                    if (allOffices.size == 1) allOffices.first() else null
                 }
 
                 if (office == null) {
-                    _state.value = _state.value.copy(message = "Absensi gagal: Lokasi kantor belum ditetapkan.", isLoading = false)
+                    _state.value = _state.value.copy(message = "Absensi gagal: Lokasi kantor belum ditetapkan di profil Anda.", isLoading = false)
                     return@launch
                 }
 
@@ -90,26 +137,35 @@ class AttendanceViewModel : ViewModel() {
                     return@launch
                 }
 
-                val now = DateUtils.nowTime()
+                // Use SERVER time instead of device time to prevent clock manipulation
+                val serverTime = DateUtils.serverNowTime()
+                val serverDate = DateUtils.serverToday()
+                val deviceTime = System.currentTimeMillis()
+                val serverTimeMs = DateUtils.getServerTimeMillis()
+                val timeDiffMs = Math.abs(deviceTime - serverTimeMs)
+                val isTimeTampered = timeDiffMs > 2 * 60 * 1000 // > 2 minutes difference
+
+                val resolvedEmpId = employee.employeeId
                 
-                // If it's a check-out, we actually need to get the existing attendance ID, 
-                // but submitAttendance in repository creates a new record.
-                // For MVP, submitAttendance creates a new record for both check-in and check-out.
-                // We will handle logic accordingly.
                 val attendance = Attendance(
-                    employeeId = employeeId,
-                    date = DateUtils.today(),
+                    employeeId = resolvedEmpId,
+                    date = serverDate,
                     clockType = clockType,
-                    checkIn = if (clockType == Constants.AttendanceType.CLOCK_IN) now else "",
-                    checkOut = if (clockType == Constants.AttendanceType.CLOCK_OUT) now else "",
+                    checkIn = if (clockType == Constants.AttendanceType.CLOCK_IN) serverTime else "",
+                    checkOut = if (clockType == Constants.AttendanceType.CLOCK_OUT) serverTime else "",
                     latitude = latitude,
-                    longitude = longitude
+                    longitude = longitude,
+                    isMockLocation = isMockDetected,
+                    serverTimestamp = serverTimeMs,
+                    deviceTimestamp = deviceTime,
+                    isTimeTampered = isTimeTampered
                 )
 
                 repo.submitAttendance(attendance, imageUri, office, context).fold(
                     onSuccess = {
-                        _state.value = _state.value.copy(message = "Absensi berhasil!", isLoading = false)
-                        loadTodayAttendance(employeeId)
+                        val tamperedWarning = if (isTimeTampered) "\n⚠️ Peringatan: Jam perangkat Anda tidak sesuai dengan waktu server." else ""
+                        _state.value = _state.value.copy(message = "Absensi berhasil! (Waktu: $serverTime)$tamperedWarning", isLoading = false)
+                        loadTodayAttendance(resolvedEmpId)
                     },
                     onFailure = {
                         _state.value = _state.value.copy(message = "Gagal: ${it.message ?: it.javaClass.simpleName}", isLoading = false)
@@ -181,5 +237,6 @@ data class AttendanceState(
     val attendanceId: String = "",
     val message: String? = null,
     val monthlyCalendar: List<Pair<Int, String>> = emptyList(),
-    val todayList: List<Attendance> = emptyList()
+    val todayList: List<Attendance> = emptyList(),
+    val resolvedEmployeeId: String = ""
 )

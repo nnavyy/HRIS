@@ -22,6 +22,14 @@ import com.ptniger.hris.ui.theme.*
 fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: EmployeeViewModel = viewModel()) {
     var search by remember { mutableStateOf("") }
     var showAddMemberDialog by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    val csvLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { vm.importFromCsv(context, it) }
+    }
+    
     LaunchedEffect(Unit) { vm.loadAll() }
     val employees by vm.employees.collectAsState()
     
@@ -38,11 +46,19 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 72.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 if (isManager) "Tim Saya" else "Data Karyawan",
                 style = MaterialTheme.typography.headlineMedium
             )
+            
+            // CSV Import Button (Only for HR or Super Admin)
+            if (user.primaryRole == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN || user.primaryRole == com.ptniger.hris.utils.Constants.Role.HR ||
+                user.role == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN || user.role == com.ptniger.hris.utils.Constants.Role.HR) {
+                IconButton(onClick = { csvLauncher.launch("text/comma-separated-values") }) {
+                    Icon(Icons.Default.UploadFile, contentDescription = "Import CSV", tint = Blue)
+                }
+            }
         }
 
         OutlinedTextField(

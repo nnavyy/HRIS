@@ -1,4 +1,4 @@
-﻿package com.ptniger.hris.ui.employee
+package com.ptniger.hris.ui.employee
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -87,26 +87,28 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
             contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (isNew) {
-                item {
-                    Column {
-                        Text("Integrasi Akun Sistem (Opsional)", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-                        Spacer(Modifier.height(4.dp))
-                        ExposedDropdownMenuBox(expanded = userExpanded, onExpandedChange = { userExpanded = !userExpanded }) {
-                            OutlinedTextField(
-                                value = usersList.find { it.userId == linkedUserId }?.let { "${it.fullName.ifEmpty { it.name }} - ${it.role}" } ?: "Pilih Akun yang Sudah Terdaftar",
-                                onValueChange = {}, readOnly = true,
-                                modifier = Modifier.fillMaxWidth().menuAnchor(),
-                                shape = RoundedCornerShape(16.dp),
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = userExpanded) }
+            item {
+                Column {
+                    Text("Integrasi Akun Sistem (Opsional)", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                    Spacer(Modifier.height(4.dp))
+                    ExposedDropdownMenuBox(expanded = userExpanded, onExpandedChange = { userExpanded = !userExpanded }) {
+                        OutlinedTextField(
+                            value = usersList.find { it.userId == linkedUserId }?.let { "${it.fullName.ifEmpty { it.name }} - ${it.role}" } ?: "Pilih Akun yang Sudah Terdaftar",
+                            onValueChange = {}, readOnly = true,
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            shape = RoundedCornerShape(16.dp),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = userExpanded) }
+                        )
+                        ExposedDropdownMenu(expanded = userExpanded, onDismissRequest = { userExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text("— Tidak Terhubung —") },
+                                onClick = { linkedUserId = ""; userExpanded = false }
                             )
-                            ExposedDropdownMenu(expanded = userExpanded, onDismissRequest = { userExpanded = false }) {
-                                usersList.forEach { usr ->
-                                    DropdownMenuItem(
-                                        text = { Text("${usr.fullName.ifEmpty { usr.name }} (${usr.email})") },
-                                        onClick = { linkedUserId = usr.userId; name = usr.fullName.ifEmpty { usr.name }; email = usr.email; userExpanded = false }
-                                    )
-                                }
+                            usersList.forEach { usr ->
+                                DropdownMenuItem(
+                                    text = { Text("${usr.fullName.ifEmpty { usr.name }} (${usr.email})") },
+                                    onClick = { linkedUserId = usr.userId; if(name.isEmpty()) name = usr.fullName.ifEmpty { usr.name }; if(email.isEmpty()) email = usr.email; userExpanded = false }
+                                )
                             }
                         }
                     }
@@ -167,18 +169,27 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
                     Text("Lokasi Kantor", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                     Spacer(Modifier.height(4.dp))
                     ExposedDropdownMenuBox(expanded = officeExpanded, onExpandedChange = { officeExpanded = !officeExpanded }) {
+                        val selectedOffice = officeLocations.find { it.id == officeId }
+                        val displayValue = if (selectedOffice != null) {
+                            selectedOffice.name.ifEmpty { "Lokasi Tanpa Nama" }
+                        } else {
+                            if (officeId.isEmpty()) "Pilih Kantor" else "Lokasi Tidak Valid"
+                        }
+                        
                         OutlinedTextField(
-                            value = officeLocations.find { it.id == officeId }?.name ?: "Pilih Kantor",
+                            value = displayValue,
                             onValueChange = {}, readOnly = true,
                             modifier = Modifier.fillMaxWidth().menuAnchor(), shape = RoundedCornerShape(16.dp),
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = officeExpanded) }
                         )
                         ExposedDropdownMenu(expanded = officeExpanded, onDismissRequest = { officeExpanded = false }) {
                             if (officeLocations.isEmpty()) {
-                                DropdownMenuItem(text = { Text("Belum ada lokasi — tambah di menu Admin") }, onClick = { officeExpanded = false })
-                            }
-                            officeLocations.forEach { loc ->
-                                DropdownMenuItem(text = { Text(loc.name) }, onClick = { officeId = loc.id; branch = loc.name; officeExpanded = false })
+                                DropdownMenuItem(text = { Text("Belum ada lokasi - tambah di menu Admin") }, onClick = { officeExpanded = false })
+                            } else {
+                                DropdownMenuItem(text = { Text("— Pilih Kantor —") }, onClick = { officeId = ""; branch = ""; officeExpanded = false })
+                                officeLocations.forEach { loc ->
+                                    DropdownMenuItem(text = { Text(loc.name.ifEmpty { "Lokasi Tanpa Nama" }) }, onClick = { officeId = loc.id; branch = loc.name; officeExpanded = false })
+                                }
                             }
                         }
                     }
