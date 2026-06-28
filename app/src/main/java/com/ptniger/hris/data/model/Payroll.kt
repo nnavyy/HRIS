@@ -7,14 +7,34 @@ data class Payroll(
     val month: Int = 0,
     val year: Int = 0,
     val baseSalary: Double = 0.0,
-    val allowance: Double = 0.0,
+    val allowance: Double = 0.0,              // legacy field (kept for backward compat)
+    
+    // New: itemized allowances from contract (Phase 1)
+    val allowanceMeal: Double = 0.0,
+    val allowanceTransport: Double = 0.0,
+    val allowancePosition: Double = 0.0,
+    
     val overtimeHours: Double = 0.0,
     val overtimePay: Double = 0.0,
     val kpiScore: Double = 0.0,
     val kpiBonus: Double = 0.0,
+    
+    // Potongan karyawan (existing)
     val bpjsKesehatan: Double = 0.0,
     val bpjsJht: Double = 0.0,
     val bpjsJp: Double = 0.0,
+    
+    // New: tanggungan perusahaan (informasi saja, tidak dipotong dari gaji)
+    val bpjsJkk: Double = 0.0,
+    val bpjsJkm: Double = 0.0,
+    
+    // New: PPh 21 TER
+    val pph21: Double = 0.0,
+    val ptkpStatus: String = "TK/0",
+    
+    // New: kontrak referensi
+    val contractId: String = "",
+    
     val deductions: Double = 0.0,
     val netSalary: Double = 0.0,
     val status: String = "draft",

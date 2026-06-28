@@ -27,6 +27,7 @@ object RoleManager {
                 Constants.Role.HR -> {
                     items.add(NavItem("employees", "Karyawan", "people"))
                     items.add(NavItem("kpi_config", "KPI", "star"))
+                    items.add(NavItem("ai_review", "AI Review", "smart_toy"))    // NEW
                 }
                 Constants.Role.FINANCE -> {
                     items.add(NavItem("payroll", "Payroll", "payments"))
@@ -39,7 +40,8 @@ object RoleManager {
                     items.add(NavItem("salary_slip", "GajiKu", "payments"))
                     items.add(NavItem("employees", "Tim Saya", "people"))
                     items.add(NavItem("leave_approval", "Approval", "calendar"))
-                    items.add(NavItem("attendance_monitor", "Monitor", "clock"))
+                    items.add(NavItem("peer_review", "Peer Review", "rate_review"))  // NEW
+                    items.add(NavItem("ai_review", "AI Review", "smart_toy"))        // NEW
                 }
                 Constants.Role.SUPER_ADMIN -> {
                     items.add(NavItem("role_management", "Role", "admin"))
@@ -49,6 +51,7 @@ object RoleManager {
                     items.add(NavItem("attendance", "AbsenKu", "clock"))
                     items.add(NavItem("leave_request", "CutiKu", "calendar"))
                     items.add(NavItem("salary_slip", "GajiKu", "payments"))
+                    items.add(NavItem("contract_sign", "Kontrak", "description"))   // NEW
                 }
             }
         }

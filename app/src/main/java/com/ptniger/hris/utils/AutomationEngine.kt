@@ -69,11 +69,12 @@ object AutomationEngine {
 
     // Convenience constants for rule types
     object RuleType {
-        const val ATTENDANCE = "attendance"
-        const val LEAVE = "leave"
-        const val PAYROLL = "payroll"
+        const val ATTENDANCE  = "attendance"
+        const val LEAVE       = "leave"
+        const val PAYROLL     = "payroll"
         const val NOTIFICATION = "notification"
-        const val ACCOUNT = "account"
-        const val AUDIT = "audit"
+        const val ACCOUNT     = "account"
+        const val AUDIT       = "audit"
+        const val AI_REVIEW   = "ai_review"   // NEW: quarterly AI performance review
     }
 }

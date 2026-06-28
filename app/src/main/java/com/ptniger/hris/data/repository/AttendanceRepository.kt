@@ -42,6 +42,13 @@ class AttendanceRepository {
                 val bytes = inputStream?.readBytes() ?: throw Exception("Tidak bisa membaca gambar selfie")
                 inputStream.close()
                 
+                // Validate file size < 3MB before uploading
+                val maxSizeBytes = 3 * 1024 * 1024
+                if (bytes.size > maxSizeBytes) {
+                    throw Exception("Ukuran foto selfie terlalu besar (maks. 3MB). Coba foto ulang dengan resolusi lebih rendah.")
+                }
+                
+                val today = DateUtils.serverToday()
                 val timestamp = System.currentTimeMillis()
                 val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     val client = okhttp3.OkHttpClient.Builder()
@@ -53,7 +60,9 @@ class AttendanceRepository {
                         .setType(okhttp3.MultipartBody.FORM)
                         .addFormDataPart("file", "selfie.jpg", bytes.toRequestBody("image/jpeg".toMediaTypeOrNull()))
                         .addFormDataPart("upload_preset", uploadPreset)
+                        .addFormDataPart("folder", "hris_attendance/${attendance.employeeId}")
                         .addFormDataPart("public_id", "attendance_${authUid}_${timestamp}")
+                        .addFormDataPart("context", "employeeId=${authUid}|date=${today}")
                         .build()
                     
                     val request = okhttp3.Request.Builder()

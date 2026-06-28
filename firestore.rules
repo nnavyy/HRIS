@@ -42,7 +42,8 @@ service cloud.firestore {
     match /employees/{employeeId} {
       allow read: if isLoggedIn();
       allow create: if isSuperAdmin() || isHR();
-      allow update: if isSuperAdmin() || isHR() || isManager() || isLoggedIn();
+      allow update: if isSuperAdmin() || isHR() || isManager()
+                    || (isLoggedIn() && request.auth.uid == resource.data.userId);
       allow delete: if isSuperAdmin() || isHR();
     }
 
@@ -72,7 +73,7 @@ service cloud.firestore {
     match /leave_requests/{leaveId} {
       allow read: if isLoggedIn();
       allow create: if isLoggedIn();
-      allow update: if isSuperAdmin() || isHR() || isManager() || isLoggedIn();
+      allow update: if isSuperAdmin() || isHR() || isManager() || (isLoggedIn() && request.auth.uid == resource.data.employeeId);
       allow delete: if isSuperAdmin() || isHR();
     }
 
@@ -111,10 +112,32 @@ service cloud.firestore {
       allow read, write: if isLoggedIn();
     }
 
+    // --- EMPLOYEE CONTRACTS ---
+    match /employee_contracts/{contractId} {
+      allow read: if isSuperAdmin() || isHR() || isManager()
+                  || (isLoggedIn() && resource.data.employeeId == request.auth.uid);
+      allow create, update: if isSuperAdmin() || isHR();
+      allow delete: if isSuperAdmin();
+    }
+
+    // --- PEER REVIEWS ---
+    match /peer_reviews/{reviewId} {
+      allow read: if isSuperAdmin() || isHR() || isManager();
+      allow create: if isLoggedIn();
+      allow update, delete: if false;  // peer review tidak bisa diedit/hapus setelah submit
+    }
+
+    // --- AI REVIEWS (hanya HR/Manager/SuperAdmin, karyawan tidak bisa akses) ---
+    match /ai_reviews/{reviewId} {
+      allow read: if isSuperAdmin() || isHR() || isManager();
+      allow create: if isSuperAdmin() || isHR() || isManager();
+      allow update: if isSuperAdmin() || isHR();
+      allow delete: if isSuperAdmin();
+    }
+
     // --- OTHER COLLECTIONS ---
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
   }
 }
-

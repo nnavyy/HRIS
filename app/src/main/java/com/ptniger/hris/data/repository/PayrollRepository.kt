@@ -22,18 +22,69 @@ class PayrollRepository {
         return try {
             val period = String.format("%04d-%02d", year, month)
             
+            // Fetch active contract for itemized allowances & PTKP status
+            val contractRepo = ContractRepository()
+            val contract = contractRepo.getActiveContract(employeeId)
+            
+            val allowanceMeal = contract?.allowanceMeal ?: 0.0
+            val allowanceTransport = contract?.allowanceTransport ?: 0.0
+            val allowancePosition = contract?.allowancePosition ?: 0.0
+            val ptkpStatus = contract?.ptkpStatus ?: "TK/0"
+            val contractId = contract?.contractId ?: ""
+            
+            // Total allowance (itemized if contract exists, else legacy allowance)
+            val totalAllowance = if (contract != null)
+                com.ptniger.hris.utils.PayrollCalculator.calculateTotalAllowance(allowanceMeal, allowanceTransport, allowancePosition)
+            else allowance
+            
             // Check if payroll KPI bonus automation is enabled
             val kpiBonusEnabled = AutomationEngine.isRuleActive(AutomationEngine.RuleType.PAYROLL)
-            
             val kpiScore = if (kpiBonusEnabled) kpiRepo.getTotalWeightedScore(employeeId, period) else 0.0
             val kpiBonus = if (kpiBonusEnabled) KpiCalculator.calculateKpiBonus(baseSalary, kpiScore) else 0.0
-            val net = KpiCalculator.calculateNetSalary(baseSalary, allowance, overtimePay, kpiBonus, deductions)
+            
+            // BPJS potongan karyawan (existing functions, unchanged)
+            val bpjsKes = com.ptniger.hris.utils.PayrollCalculator.calculateBpjsKesehatan(baseSalary, totalAllowance)
+            val bpjsJht = com.ptniger.hris.utils.PayrollCalculator.calculateBpjsJht(baseSalary, totalAllowance)
+            val bpjsJp  = com.ptniger.hris.utils.PayrollCalculator.calculateBpjsJp(baseSalary, totalAllowance)
+            
+            // BPJS tanggungan perusahaan (informasi, tidak dipotong dari gaji)
+            val jkkRate = contract?.bpjsJkkRate ?: 0.0024
+            val jkmRate = contract?.bpjsJkmRate ?: 0.003
+            val bpjsJkk = com.ptniger.hris.utils.PayrollCalculator.calculateBpjsJkk(baseSalary, jkkRate)
+            val bpjsJkm = com.ptniger.hris.utils.PayrollCalculator.calculateBpjsJkm(baseSalary, jkmRate)
+            
+            // PPh 21 via metode TER (PMK 168/2023)
+            val grossMonthly = baseSalary + totalAllowance + overtimePay + kpiBonus
+            val pph21 = com.ptniger.hris.utils.PayrollCalculator.calculatePph21Ter(grossMonthly, ptkpStatus)
+            
+            // Net salary
+            val net = com.ptniger.hris.utils.PayrollCalculator.calculateFullNetSalary(
+                baseSalary = baseSalary,
+                allowanceMeal = allowanceMeal,
+                allowanceTransport = allowanceTransport,
+                allowancePosition = allowancePosition,
+                overtimePay = overtimePay,
+                kpiBonus = kpiBonus,
+                bpjsKes = bpjsKes,
+                bpjsJht = bpjsJht,
+                bpjsJp = bpjsJp,
+                pph21 = pph21,
+                otherDeductions = deductions
+            )
 
             val payroll = Payroll(
                 employeeId = employeeId, employeeName = employeeName,
                 month = month, year = year, baseSalary = baseSalary,
-                allowance = allowance, overtimePay = overtimePay,
+                allowance = totalAllowance,
+                allowanceMeal = allowanceMeal,
+                allowanceTransport = allowanceTransport,
+                allowancePosition = allowancePosition,
+                overtimePay = overtimePay,
                 kpiScore = kpiScore, kpiBonus = kpiBonus,
+                bpjsKesehatan = bpjsKes, bpjsJht = bpjsJht, bpjsJp = bpjsJp,
+                bpjsJkk = bpjsJkk, bpjsJkm = bpjsJkm,
+                pph21 = pph21, ptkpStatus = ptkpStatus,
+                contractId = contractId,
                 deductions = deductions, netSalary = net
             )
             val ref = col.add(payroll).await()
@@ -48,7 +99,7 @@ class PayrollRepository {
                     module = "Payroll",
                     targetCollection = Constants.Collections.PAYROLLS,
                     targetId = ref.id,
-                    details = "Period: $period, Net: $net, KPI Bonus: $kpiBonus (enabled=$kpiBonusEnabled)"
+                    details = "Period: $period, Net: $net, PPh21: $pph21, KPI Bonus: $kpiBonus, Contract: $contractId"
                 )
             }
             

@@ -3,22 +3,29 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Helper function to check role from Firestore (Requires Firebase Storage rules to interact with Firestore, which is allowed in version 2 using firestore.get)
-    // Note: Due to billing/latency, it's sometimes better to use Custom Claims. But for MVP, this works.
-    function getUserRole() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    // Helper: Get user data from Firestore
+    function getUserData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Multi-role support: checks primaryRole, role, and roles[] list
+    function hasAnyRole(roleList) {
+      let userData = getUserData();
+      return userData.primaryRole in roleList
+          || userData.role in roleList
+          || (userData.roles != null && userData.roles.hasAny(roleList));
     }
 
     function isSuperAdmin() {
-      return request.auth != null && getUserRole() == 'super_admin';
+      return request.auth != null && hasAnyRole(['super_admin']);
     }
 
     function isHR() {
-      return request.auth != null && getUserRole() == 'hr';
+      return request.auth != null && hasAnyRole(['hr']);
     }
 
     function isManager() {
-      return request.auth != null && getUserRole() == 'manager';
+      return request.auth != null && hasAnyRole(['manager']);
     }
 
     match /attendance_selfies/{authUid}/{fileName} {

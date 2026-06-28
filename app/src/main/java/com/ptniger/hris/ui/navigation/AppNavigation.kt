@@ -41,6 +41,11 @@ import com.ptniger.hris.ui.payroll.PayrollApprovalScreen
 import com.ptniger.hris.ui.payroll.SalarySlipScreen
 import com.ptniger.hris.ui.profile.ProfileScreen
 import com.ptniger.hris.ui.report.ReportScreen
+import com.ptniger.hris.ui.ai_review.AiReviewScreen
+import com.ptniger.hris.ui.contract.ContractFormScreen
+import com.ptniger.hris.ui.contract.ContractSignScreen
+import com.ptniger.hris.ui.kpi.PeerReviewScreen
+import com.ptniger.hris.data.model.Employee
 import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.Constants
 
@@ -132,6 +137,9 @@ fun MainScaffold(
                     "office_locations" -> OfficeLocationScreen(user = user, onBack = { onNavigate("dashboard") })
                     "manage_accounts" -> AccountManagementScreen(user = user, onBack = { onNavigate("dashboard") })
                     "profile" -> ProfileScreen(user = user, onLogout = onLogout)
+                    "contract_sign" -> ContractSignScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "peer_review" -> PeerReviewScreen(user = user, onBack = { onNavigate("kpi_result") })
+                    "ai_review" -> AiReviewScreen(user = user, onBack = { onNavigate("dashboard") })
                     else -> {
                         if (currentRoute.startsWith("employee_form_")) {
                             val id = currentRoute.removePrefix("employee_form_")

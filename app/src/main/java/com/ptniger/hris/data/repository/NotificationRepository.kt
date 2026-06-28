@@ -47,4 +47,19 @@ class NotificationRepository {
             col.whereEqualTo("userId", userId).whereEqualTo("isRead", false).get().await().size()
         } catch (e: Exception) { 0 }
     }
+
+    /**
+     * Triggered when HR creates a new employee contract.
+     * Sends notification to the employee to sign the contract.
+     */
+    suspend fun sendContractNotification(
+        employeeId: String,
+        contractId: String,
+        employeeName: String
+    ): Result<String> = send(
+        userId = employeeId,
+        title = "Kontrak Baru Perlu Ditandatangani",
+        message = "Ada kontrak kerja baru untukmu yang perlu segera ditandatangani. Buka menu 'Kontrak' untuk melihat detailnya.",
+        type = "contract"
+    )
 }
