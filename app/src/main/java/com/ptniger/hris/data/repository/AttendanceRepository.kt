@@ -103,17 +103,34 @@ class AttendanceRepository {
                 validationStatus = Constants.AttendanceStatus.NEED_REVIEW
             }
 
+            // 2b. Resolve employee for schedule lookup
+            val resolvedEmployee = try {
+                EmployeeRepository().getByUserId(attendance.employeeId)
+                    ?: EmployeeRepository().getById(attendance.employeeId)
+            } catch (_: Exception) { null }
+
+            // 2c. Fetch work schedule
+            val scheduleRepo = WorkScheduleRepository()
+            val schedule = resolvedEmployee?.workScheduleId
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { scheduleRepo.getForEmployee(it) }
+                ?: scheduleRepo.getDefault()
+
             // 3. Determine attendanceStatus (late/present) — respects Automation Rule
             var attendanceStatus = Constants.AttendanceStatus.PRESENT
             if (attendance.clockType == Constants.AttendanceType.CLOCK_IN) {
                 val autoLateEnabled = AutomationEngine.isRuleActive(AutomationEngine.RuleType.ATTENDANCE)
-                if (autoLateEnabled && DateUtils.isLate(attendance.checkIn)) {
+                if (autoLateEnabled && DateUtils.isLate(attendance.checkIn, schedule.lateThreshold)) {
                     attendanceStatus = Constants.AttendanceStatus.LATE
                 }
             }
 
             val lateMinutes = if (attendanceStatus == Constants.AttendanceStatus.LATE) {
-                DateUtils.calculateLateMinutes(attendance.checkIn)
+                DateUtils.calculateLateMinutes(
+                    checkInTime = attendance.checkIn,
+                    workStartTime = schedule.workStartTime,
+                    lateThreshold = schedule.lateThreshold
+                )
             } else 0
 
             // 4. Prepare Final Attendance Data — time values already come from server via ViewModel
@@ -135,7 +152,8 @@ class AttendanceRepository {
                     officeLatitude = office?.latitude ?: 0.0,
                     officeLongitude = office?.longitude ?: 0.0,
                     checkIn = checkInTime,
-                    deviceModel = android.os.Build.MODEL
+                    deviceModel = android.os.Build.MODEL,
+                    workScheduleId = schedule.scheduleId
                 )
                 val ref = col.add(finalAttendance).await()
                 
@@ -144,7 +162,7 @@ class AttendanceRepository {
                         userId = authUid, userName = "Employee ${attendance.employeeId}", actorRole = "employee",
                         action = if (validationStatus == Constants.AttendanceStatus.VALID) "CLOCK_IN_VALID" else "CLOCK_IN_INVALID_LOCATION",
                         module = "Attendance", targetCollection = Constants.Collections.ATTENDANCE, targetId = ref.id,
-                        targetUserId = authUid, details = "status=${attendanceStatus}, validation=${validationStatus}, distance=${distance}m"
+                        targetUserId = authUid, details = "status=${attendanceStatus}, validation=${validationStatus}, distance=${distance}m, schedule=${schedule.scheduleId}"
                     )
                 }
                 return Result.success(ref.id)
@@ -153,12 +171,22 @@ class AttendanceRepository {
                 val todayRecord = getTodayAttendance(attendance.employeeId)
                 if (todayRecord != null && todayRecord.attendanceId.isNotEmpty()) {
                     val checkOutNow = checkOutTime.ifEmpty { DateUtils.nowTime() }
-                    val overtimeHours = DateUtils.calculateOvertimeHours(checkOutNow)
+                    val overtimeHours = DateUtils.calculateOvertimeHours(
+                        checkOutTime = checkOutNow,
+                        overtimeStartsAfter = schedule.overtimeStartsAfter,
+                        maxOvertimeHours = schedule.maxOvertimeHours
+                    )
+                    val isEarlyLeave = DateUtils.isEarlyLeave(
+                        checkOutTime = checkOutNow,
+                        earlyLeaveBuffer = schedule.earlyLeaveBuffer
+                    )
                     
                     col.document(todayRecord.attendanceId).update(
                         mapOf(
                             "checkOut" to checkOutNow,
                             "overtimeHours" to overtimeHours,
+                            "isEarlyLeave" to isEarlyLeave,
+                            "workScheduleId" to schedule.scheduleId,
                             "distanceFromOfficeMeters" to distance,
                             "isWithinOfficeRadius" to isWithinRadius,
                             "isMockLocation" to attendance.isMockLocation,
@@ -173,7 +201,7 @@ class AttendanceRepository {
                             userId = authUid, userName = "Employee ${attendance.employeeId}", actorRole = "employee",
                             action = "CLOCK_OUT", module = "Attendance", targetCollection = Constants.Collections.ATTENDANCE, 
                             targetId = todayRecord.attendanceId, targetUserId = authUid, 
-                            details = "checkOut=$checkOutNow, overtime=$overtimeHours"
+                            details = "checkOut=$checkOutNow, overtime=$overtimeHours, earlyLeave=$isEarlyLeave, schedule=${schedule.scheduleId}"
                         )
                     }
                     return Result.success(todayRecord.attendanceId)

@@ -1,6 +1,7 @@
 package com.ptniger.hris.ui.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +20,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ptniger.hris.data.model.User
+import com.ptniger.hris.data.repository.ContractRepository
 import com.ptniger.hris.ui.theme.*
+import com.ptniger.hris.utils.SeedDataManager
 import kotlinx.coroutines.launch
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +52,14 @@ fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardVie
         QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Konfigurasi KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_config") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("AI Review Kinerja", Icons.Default.Psychology, PurpleSoft, Purple) { onNavigate("ai_review") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Buat Kontrak", Icons.Default.Description, TealSoft, Teal) { onNavigate("contract_form") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Jadwal Kerja", Icons.Default.Schedule, GreenSoft, Green) { onNavigate("work_schedule_config") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Kebijakan Cuti", Icons.Default.Policy, RedSoft, Red) { onNavigate("leave_policy") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Lokasi Kantor", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
         Spacer(Modifier.height(8.dp))
@@ -104,6 +115,50 @@ fun ManagerDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
             MetricCard(Modifier.weight(1f), "Approval Payroll", "Pending", "Perlu review", Icons.Default.Payments, BlueSoft, Blue)
         }
         Spacer(Modifier.height(16.dp))
+        Text("Menu Saya", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Surface(
+                onClick = { onNavigate("attendance") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
+            ) {
+                Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(GreenSoft), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.AccessTime, null, tint = Green, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text("AbsenKu", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Surface(
+                onClick = { onNavigate("leave_request") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
+            ) {
+                Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(BlueSoft), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.CalendarMonth, null, tint = Blue, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text("CutiKu", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Surface(
+                onClick = { onNavigate("salary_slip") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
+            ) {
+                Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(OrangeSoft), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Payments, null, tint = Orange, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text("GajiKu", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
         Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Approval Cuti Bawahan", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
@@ -111,6 +166,10 @@ fun ManagerDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
         QuickActionButton("Approval Payroll", Icons.Default.Payments, BlueSoft, Blue) { onNavigate("payroll_approval") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Penilaian KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_scoring") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("AI Review Kinerja", Icons.Default.Psychology, PurpleSoft, Purple) { onNavigate("ai_review") }
+        Spacer(Modifier.height(8.dp))
+        QuickActionButton("Peer Review", Icons.Default.RateReview, TealSoft, Teal) { onNavigate("peer_review") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Monitor Absensi Tim", Icons.Default.AccessTime, TealSoft, Teal) { onNavigate("attendance_monitor") }
         Spacer(Modifier.height(8.dp))
@@ -161,8 +220,52 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
         val seedScope = rememberCoroutineScope()
         HorizontalDivider(color = CardBorder)
         Spacer(Modifier.height(8.dp))
-        Text("Mode Demo", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        Text("Developer Tools", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
         Spacer(Modifier.height(4.dp))
+
+        // Button 1: SeedDataManager (lengkap untuk AI Review)
+        var isSeedAiLoading by remember { mutableStateOf(false) }
+        var seedAiResult by remember { mutableStateOf<String?>(null) }
+        OutlinedButton(
+            onClick = {
+                if (!isSeedAiLoading) {
+                    isSeedAiLoading = true
+                    seedAiResult = null
+                    seedScope.launch {
+                        val result = SeedDataManager.seedAll()
+                        seedAiResult = if (result.errors.isEmpty()) {
+                            "✅ Berhasil insert ${result.inserted} dokumen (attendance Q2, KPI scores, peer reviews)"
+                        } else {
+                            "⚠️ ${result.inserted} berhasil, ${result.errors.size} error: ${result.errors.joinToString()}"
+                        }
+                        isSeedAiLoading = false
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            enabled = !isSeedAiLoading,
+            border = androidx.compose.foundation.BorderStroke(1.dp, Purple)
+        ) {
+            if (isSeedAiLoading) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Purple)
+                Spacer(Modifier.width(8.dp))
+                Text("Seeding data AI Review...", color = Purple)
+            } else {
+                Icon(Icons.Default.Psychology, null, tint = Purple, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Seed Data Lengkap (AI Review + KPI)", color = Purple)
+            }
+        }
+        seedAiResult?.let {
+            Spacer(Modifier.height(4.dp))
+            Text(it, style = MaterialTheme.typography.bodySmall,
+                color = if (it.startsWith("✅")) Green else Orange)
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Button 2: DummyDataSeeder (demo presentasi ringan)
         OutlinedButton(
             onClick = {
                 if (!isSeedLoading) {
@@ -179,7 +282,7 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
         ) {
             Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
-            Text(if (isSeedLoading) "Memuat data demo..." else "Muat Data Demo (untuk Presentasi)")
+            Text(if (isSeedLoading) "Memuat data demo..." else "Muat Data Demo Ringan (Presentasi)")
         }
         if (seedMessage != null) {
             Spacer(Modifier.height(4.dp))
@@ -249,7 +352,37 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
     LaunchedEffect(Unit) { vm.loadEmployeeDashboard(user.userId) }
     val s by vm.state.collectAsState()
 
+    // Check pending contract
+    var hasPendingContract by remember { mutableStateOf(false) }
+    LaunchedEffect(user.userId) {
+        if (user.userId.isNotEmpty()) {
+            val contracts = ContractRepository().getUnsignedContracts(user.userId)
+            hasPendingContract = contracts.isNotEmpty()
+        }
+    }
+
     DashboardLayout(title = "Halo, ${user.fullName.ifEmpty { user.name }}", subtitle = "HRIS Portal · Employee Self Service", user = user) {
+        // Pending contract banner
+        if (hasPendingContract) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = OrangeSoft,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigate("contract_sign") }
+            ) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Description, null, tint = Orange, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Ada kontrak yang perlu ditandatangani",
+                        style = MaterialTheme.typography.bodySmall, color = Orange)
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.ChevronRight, null, tint = Orange, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
         Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricCard(Modifier.weight(1f), "Status Hari Ini", if (s.checkInTime.isNotEmpty()) "Hadir" else "Belum", s.checkInTime.ifEmpty { "Check-in" }, Icons.Default.AccessTime, GreenSoft, Green)

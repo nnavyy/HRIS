@@ -68,5 +68,11 @@ object Constants {
         const val AUDIT_LOGS = "audit_logs"
         const val AUTOMATION_RULES = "automation_rules"
         const val OFFICE_LOCATIONS = "office_locations"
+        const val PEER_REVIEWS = "peer_reviews"
+        const val AI_REVIEWS = "ai_reviews"
+        const val EMPLOYEE_CONTRACTS = "employee_contracts"
+        const val WORK_SCHEDULES = "work_schedules"
+        const val LEAVE_POLICIES = "leave_policies"
+        const val EMAIL_QUEUE = "email_queue"
     }
 }

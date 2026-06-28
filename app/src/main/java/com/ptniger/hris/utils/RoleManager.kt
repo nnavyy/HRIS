@@ -12,52 +12,50 @@ object RoleManager {
 
     /**
      * Returns nav items for the bottom bar.
-     * Profile is NOT included — it's handled as a top-right avatar.
-     * Audit, Approval Cuti, Absensi Tim are also NOT in nav (moved to dashboard).
-     * Max ~4-5 items per role to keep the navbar clean.
+     * MAX 4 ITEMS per role (Home + 3 role-specific).
+     * Features not in navbar are accessible via Dashboard QuickAction cards.
      */
     fun getNavItems(roles: List<String>): List<NavItem> {
-        val items = mutableSetOf<NavItem>()
-        
-        // Home is always first
+        val items = mutableListOf<NavItem>()
         items.add(NavItem("dashboard", "Home", "home"))
 
-        roles.forEach { role ->
-            when (role) {
-                Constants.Role.HR -> {
-                    items.add(NavItem("employees", "Karyawan", "people"))
-                    items.add(NavItem("kpi_config", "KPI", "star"))
-                    items.add(NavItem("ai_review", "AI Review", "smart_toy"))    // NEW
-                }
-                Constants.Role.FINANCE -> {
-                    items.add(NavItem("payroll", "Payroll", "payments"))
-                    items.add(NavItem("report", "Laporan", "chart"))
-                }
-                Constants.Role.MANAGER -> {
-                    // Manager needs quick access to team management, leave approval, and attendance monitor
-                    items.add(NavItem("attendance", "AbsenKu", "clock"))
-                    items.add(NavItem("leave_request", "CutiKu", "calendar"))
-                    items.add(NavItem("salary_slip", "GajiKu", "payments"))
-                    items.add(NavItem("employees", "Tim Saya", "people"))
-                    items.add(NavItem("leave_approval", "Approval", "calendar"))
-                    items.add(NavItem("peer_review", "Peer Review", "rate_review"))  // NEW
-                    items.add(NavItem("ai_review", "AI Review", "smart_toy"))        // NEW
-                }
-                Constants.Role.SUPER_ADMIN -> {
-                    items.add(NavItem("role_management", "Role", "admin"))
-                    items.add(NavItem("automation", "Auto", "settings"))
-                }
-                Constants.Role.EMPLOYEE -> {
-                    items.add(NavItem("attendance", "AbsenKu", "clock"))
-                    items.add(NavItem("leave_request", "CutiKu", "calendar"))
-                    items.add(NavItem("salary_slip", "GajiKu", "payments"))
-                    items.add(NavItem("contract_sign", "Kontrak", "description"))   // NEW
-                }
+        val primary = roles.firstOrNull { it != Constants.Role.EMPLOYEE }
+            ?: Constants.Role.EMPLOYEE
+
+        when (primary) {
+            Constants.Role.HR -> {
+                // HR akses harian: lihat karyawan & approval cuti
+                items.add(NavItem("employees", "Karyawan", "people"))
+                items.add(NavItem("leave_approval", "Approval", "calendar"))
+                items.add(NavItem("kpi_config", "KPI", "star"))
+                // AI Review → Dashboard QuickAction
+            }
+            Constants.Role.FINANCE -> {
+                items.add(NavItem("payroll", "Payroll", "payments"))
+                items.add(NavItem("payroll_approval", "Approval", "check_circle"))
+                items.add(NavItem("report", "Laporan", "chart"))
+            }
+            Constants.Role.MANAGER -> {
+                // Manager akses harian: monitor tim & approval
+                items.add(NavItem("attendance_monitor", "Tim", "people"))
+                items.add(NavItem("leave_approval", "Approval", "calendar"))
+                items.add(NavItem("kpi_scoring", "KPI", "star"))
+                // AbsenKu, CutiKu, GajiKu (personal) → Dashboard "Menu Saya"
+                // Peer Review & AI Review → Dashboard QuickAction
+            }
+            Constants.Role.SUPER_ADMIN -> {
+                items.add(NavItem("role_management", "Role", "admin"))
+                items.add(NavItem("automation", "Auto", "settings"))
+            }
+            Constants.Role.EMPLOYEE -> {
+                items.add(NavItem("attendance", "Absensi", "clock"))
+                items.add(NavItem("leave_request", "Cuti", "calendar"))
+                items.add(NavItem("salary_slip", "Gaji", "payments"))
+                // Kontrak → Dashboard notif badge
             }
         }
-        
-        // No profile in nav — it's now a top-right avatar
-        return items.toList()
+
+        return items
     }
 
     fun getRoleDisplayName(role: String): String {

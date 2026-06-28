@@ -22,6 +22,13 @@ class PayrollViewModel : ViewModel() {
     fun loadAll() { viewModelScope.launch { _payrolls.value = repo.getAll(); _employees.value = empRepo.getAll() } }
     fun loadByEmployee(empId: String) { viewModelScope.launch { _payrolls.value = repo.getByEmployee(empId) } }
 
+    fun getAutoOvertimeHours(empId: String, onResult: (Double) -> Unit) {
+        viewModelScope.launch {
+            val attendances = com.ptniger.hris.data.repository.AttendanceRepository().getMonthlyAttendance(empId, DateUtils.currentMonth(), DateUtils.currentYear())
+            onResult(attendances.sumOf { it.overtimeHours })
+        }
+    }
+
     fun loadSlipForUser(employeeId: String, authUid: String) {
         viewModelScope.launch {
             // Try with employeeId first

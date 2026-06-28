@@ -2,9 +2,7 @@ package com.ptniger.hris.ui.navigation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -41,8 +39,7 @@ fun BottomNavBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             items.forEach { item ->
@@ -51,7 +48,6 @@ fun BottomNavBar(
                     icon = getIcon(item.icon),
                     label = item.label,
                     selected = selected,
-                    compact = items.size > 5,
                     onClick = { onNavigate(item.route) }
                 )
             }
@@ -64,10 +60,8 @@ private fun NavButton(
     icon: ImageVector,
     label: String,
     selected: Boolean,
-    compact: Boolean = false,
     onClick: () -> Unit
 ) {
-    val hPad = if (compact) 8.dp else 12.dp
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
@@ -76,21 +70,19 @@ private fun NavButton(
                 else Modifier
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = hPad, vertical = 5.dp),
+            .padding(horizontal = 12.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = if (selected) Blue else TextSecondary,
-            modifier = Modifier.size(if (compact) 20.dp else 22.dp)
+            modifier = Modifier.size(22.dp)
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = if (compact) 9.sp else 10.sp
-            ),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             color = if (selected) Blue else TextSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -111,6 +103,10 @@ private fun getIcon(name: String): ImageVector {
         "clock" -> Icons.Default.AccessTime
         "admin" -> Icons.Default.AdminPanelSettings
         "settings" -> Icons.Default.Settings
+        "check_circle" -> Icons.Default.CheckCircle
+        "rate_review" -> Icons.Default.RateReview
+        "smart_toy" -> Icons.Default.Psychology
+        "description" -> Icons.Default.Description
         else -> Icons.Default.Circle
     }
 }

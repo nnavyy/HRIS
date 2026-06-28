@@ -21,6 +21,8 @@ import com.ptniger.hris.ui.admin.AccountManagementScreen
 import com.ptniger.hris.ui.admin.AutomationScreen
 import com.ptniger.hris.ui.admin.RoleManagementScreen
 import com.ptniger.hris.ui.admin.OfficeLocationScreen
+import com.ptniger.hris.ui.admin.WorkScheduleScreen
+import com.ptniger.hris.ui.admin.LeavePolicyScreen
 import com.ptniger.hris.ui.agreement.AgreementScreen
 import com.ptniger.hris.ui.agreement.hasAgreed
 import com.ptniger.hris.ui.attendance.AttendanceMonitorScreen
@@ -44,6 +46,7 @@ import com.ptniger.hris.ui.report.ReportScreen
 import com.ptniger.hris.ui.ai_review.AiReviewScreen
 import com.ptniger.hris.ui.contract.ContractFormScreen
 import com.ptniger.hris.ui.contract.ContractSignScreen
+import com.ptniger.hris.ui.contract.EmployeePickerForContractScreen
 import com.ptniger.hris.ui.kpi.PeerReviewScreen
 import com.ptniger.hris.data.model.Employee
 import com.ptniger.hris.ui.theme.*
@@ -85,10 +88,13 @@ fun AppNavigation(
 
         composable("main") {
             val user = currentUser ?: return@composable
+            var navigationEmployee by remember { mutableStateOf<Employee?>(null) }
             MainScaffold(
                 user = user,
                 currentRoute = currentRoute,
+                navigationEmployee = navigationEmployee,
                 onNavigate = { route -> currentRoute = route },
+                onSetNavigationEmployee = { navigationEmployee = it },
                 onLogout = {
                     currentUser = null
                     navController.navigate(Screen.Login.route) {
@@ -107,7 +113,9 @@ fun AppNavigation(
 fun MainScaffold(
     user: User,
     currentRoute: String,
+    navigationEmployee: Employee? = null,
     onNavigate: (String) -> Unit,
+    onSetNavigationEmployee: (Employee?) -> Unit = {},
     onLogout: () -> Unit,
     onNavigateToDetail: (String) -> Unit
 ) {
@@ -138,8 +146,26 @@ fun MainScaffold(
                     "manage_accounts" -> AccountManagementScreen(user = user, onBack = { onNavigate("dashboard") })
                     "profile" -> ProfileScreen(user = user, onLogout = onLogout)
                     "contract_sign" -> ContractSignScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "contract_form" -> {
+                        val emp = navigationEmployee
+                        if (emp == null) {
+                            EmployeePickerForContractScreen(
+                                user = user,
+                                onEmployeeSelected = { onSetNavigationEmployee(it) },
+                                onBack = { onNavigate("dashboard") }
+                            )
+                        } else {
+                            ContractFormScreen(
+                                user = user,
+                                employee = emp,
+                                onBack = { onSetNavigationEmployee(null); onNavigate("dashboard") }
+                            )
+                        }
+                    }
                     "peer_review" -> PeerReviewScreen(user = user, onBack = { onNavigate("kpi_result") })
                     "ai_review" -> AiReviewScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "work_schedule_config" -> WorkScheduleScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "leave_policy" -> LeavePolicyScreen(user = user, onBack = { onNavigate("dashboard") })
                     else -> {
                         if (currentRoute.startsWith("employee_form_")) {
                             val id = currentRoute.removePrefix("employee_form_")

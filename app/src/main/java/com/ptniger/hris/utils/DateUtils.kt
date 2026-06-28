@@ -38,26 +38,62 @@ object DateUtils {
         return checkInTime > threshold
     }
 
-    fun calculateLateMinutes(checkInTime: String, threshold: String = "08:00"): Int {
+    /**
+     * Hitung menit keterlambatan berdasarkan jadwal kerja.
+     * - Masuk sebelum/tepat lateThreshold → 0 menit (dalam toleransi)
+     * - Masuk setelah lateThreshold → hitung dari workStartTime
+     */
+    fun calculateLateMinutes(
+        checkInTime: String,
+        workStartTime: String = "08:00",
+        lateThreshold: String = "08:15"
+    ): Int {
         return try {
-            val checkIn = timeFormat.parse(checkInTime)
-            val limit = timeFormat.parse(threshold)
-            if (checkIn != null && limit != null && checkIn.after(limit)) {
-                ((checkIn.time - limit.time) / 60000).toInt()
+            val checkIn   = timeFormat.parse(checkInTime) ?: return 0
+            val threshold = timeFormat.parse(lateThreshold) ?: return 0
+            val start     = timeFormat.parse(workStartTime) ?: return 0
+            if (checkIn.after(threshold)) {
+                ((checkIn.time - start.time) / 60000).toInt().coerceAtLeast(0)
             } else 0
         } catch (e: Exception) { 0 }
     }
 
-    fun calculateOvertimeHours(checkOutTime: String, threshold: String = "17:00"): Double {
+    /**
+     * Hitung jam lembur berdasarkan jadwal kerja.
+     * - Pulang sebelum overtimeStartsAfter → 0 jam
+     * - Dibulatkan ke 0.5 jam terdekat (sesuai PP 35/2021 Pasal 28)
+     * - Cap ke maxOvertimeHours
+     */
+    fun calculateOvertimeHours(
+        checkOutTime: String,
+        overtimeStartsAfter: String = "16:10",
+        maxOvertimeHours: Double = 4.0
+    ): Double {
         return try {
-            val checkOut = timeFormat.parse(checkOutTime)
-            val limit = timeFormat.parse(threshold)
-            if (checkOut != null && limit != null && checkOut.after(limit)) {
-                val diffMinutes = (checkOut.time - limit.time) / 60000
-                // Convert minutes to hours. E.g., 90 minutes = 1.5 hours
-                Math.round((diffMinutes / 60.0) * 10.0) / 10.0
+            val checkOut      = timeFormat.parse(checkOutTime) ?: return 0.0
+            val overtimeStart = timeFormat.parse(overtimeStartsAfter) ?: return 0.0
+            if (checkOut.after(overtimeStart)) {
+                val diffMinutes = (checkOut.time - overtimeStart.time) / 60000.0
+                // Bulatkan ke 0.5 jam terdekat
+                val roundedHours = Math.floor(diffMinutes / 30.0) * 0.5
+                roundedHours.coerceAtMost(maxOvertimeHours)
             } else 0.0
         } catch (e: Exception) { 0.0 }
+    }
+
+    /**
+     * Cek apakah check-out terlalu awal (sebelum earlyLeaveBuffer).
+     * Return true = early leave (hanya flag, tidak potong gaji otomatis).
+     */
+    fun isEarlyLeave(
+        checkOutTime: String,
+        earlyLeaveBuffer: String = "15:45"
+    ): Boolean {
+        return try {
+            val checkOut = timeFormat.parse(checkOutTime) ?: return false
+            val buffer   = timeFormat.parse(earlyLeaveBuffer) ?: return false
+            checkOut.before(buffer)
+        } catch (e: Exception) { false }
     }
 
     /**

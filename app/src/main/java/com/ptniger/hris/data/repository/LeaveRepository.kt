@@ -5,6 +5,8 @@ import com.google.firebase.firestore.Query
 import com.ptniger.hris.data.model.LeaveRequest
 import com.ptniger.hris.utils.AutomationEngine
 import com.ptniger.hris.utils.Constants
+import com.ptniger.hris.utils.LeaveEmailNotifier
+import com.ptniger.hris.utils.LeaveValidator
 import kotlinx.coroutines.tasks.await
 
 class LeaveRepository {
@@ -13,52 +15,101 @@ class LeaveRepository {
     private val employeeRepo = EmployeeRepository()
 
     /**
-     * Submit a leave request.
-     * If the "leave" automation rule is active, auto-checks quota and rejects if insufficient.
+     * Submit a leave request with full validation:
+     * 1. Fetch LeavePolicy + employee quota
+     * 2. Validate via LeaveValidator
+     * 3. Auto-reject if validation fails + policy says so
+     * 4. Save + notify manager (in-app + email queue)
      */
     suspend fun submit(leave: LeaveRequest): Result<String> {
         return try {
-            // Check if Leave Quota automation is enabled
-            val quotaCheckEnabled = AutomationEngine.isRuleActive(AutomationEngine.RuleType.LEAVE)
-            
-            if (quotaCheckEnabled) {
-                val employee = employeeRepo.getByUserId(leave.employeeId) 
-                    ?: employeeRepo.getById(leave.employeeId)
-                if (employee != null && employee.leaveQuota <= 0) {
-                    return Result.failure(Exception("Kuota cuti habis. Pengajuan cuti otomatis ditolak oleh sistem."))
+            // 1. Fetch policy & employee
+            val policy = LeavePolicyRepository().getActivePolicy()
+            val employee = employeeRepo.getByUserId(leave.employeeId)
+                ?: employeeRepo.getById(leave.employeeId)
+            val currentQuota = employee?.leaveQuota ?: 12
+
+            // 2. Validasi
+            val validation = LeaveValidator.validate(
+                startDateStr = leave.startDate,
+                endDateStr = leave.endDate,
+                duration = leave.duration,
+                leaveQuota = currentQuota,
+                policy = policy
+            )
+
+            // 3. Jika tidak valid
+            if (!validation.isValid) {
+                if (validation.autoReject) {
+                    // Simpan ke Firestore sebagai rejected (tampil di riwayat)
+                    val rejectedLeave = leave.copy(
+                        status = Constants.LeaveStatus.REJECTED,
+                        approvedBy = "system",
+                        autoRejected = true,
+                        rejectionReason = validation.errorMessage
+                    )
+                    val ref = col.add(rejectedLeave).await()
+                    if (AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)) {
+                        AuditLogRepository().log(
+                            userId = leave.employeeId, userName = leave.employeeName,
+                            action = "LEAVE_AUTO_REJECTED", module = "Leave",
+                            targetCollection = Constants.Collections.LEAVE_REQUESTS, targetId = ref.id,
+                            details = "Auto-rejected: ${validation.errorMessage}"
+                        )
+                    }
+                }
+                return Result.failure(Exception(validation.errorMessage))
+            }
+
+            // 4. Valid → simpan
+            val ref = col.add(leave).await()
+
+            // 5. Notif in-app ke manager
+            if (AutomationEngine.isRuleActive(AutomationEngine.RuleType.LEAVE)) {
+                employee?.managerId?.takeIf { it.isNotEmpty() }?.let { mgrId ->
+                    val manager = employeeRepo.getById(mgrId)
+                    manager?.userId?.takeIf { it.isNotEmpty() }?.let { uid ->
+                        NotificationRepository().send(
+                            userId = uid,
+                            title = "Pengajuan Cuti Baru",
+                            message = "${leave.employeeName} mengajukan ${leave.type} " +
+                                    "(${leave.duration} hari) mulai ${leave.startDate}.",
+                            type = "leave_request"
+                        )
+                    }
+                    // 6. Email ke manager (fire and forget)
+                    try {
+                        if (manager?.email?.isNotEmpty() == true) {
+                            LeaveEmailNotifier.notifyManagerOfNewRequest(
+                                leave = leave, manager = manager, managerEmail = manager.email
+                            )
+                        }
+                    } catch (_: Exception) {}
                 }
             }
-            
-            val ref = col.add(leave).await()
-            
-            // Auto audit log if enabled
-            val auditEnabled = AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)
-            if (auditEnabled) {
+
+            // 7. Audit log
+            if (AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)) {
                 AuditLogRepository().log(
-                    userId = leave.employeeId,
-                    userName = leave.employeeName,
-                    action = "LEAVE_SUBMITTED",
-                    module = "Leave",
-                    targetCollection = Constants.Collections.LEAVE_REQUESTS,
-                    targetId = ref.id,
+                    userId = leave.employeeId, userName = leave.employeeName,
+                    action = "LEAVE_SUBMITTED", module = "Leave",
+                    targetCollection = Constants.Collections.LEAVE_REQUESTS, targetId = ref.id,
                     details = "Type: ${leave.type}, From: ${leave.startDate}, To: ${leave.endDate}, Reason: ${leave.reason}"
                 )
             }
-            
+
             Result.success(ref.id)
         } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun getByEmployee(employeeId: String): List<LeaveRequest> {
         return try {
-            // Try with orderBy first (requires Firestore index)
             col.whereEqualTo("employeeId", employeeId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get().await().documents.mapNotNull {
                     it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
                 }
         } catch (e: Exception) {
-            // Fallback without orderBy if index doesn't exist yet
             try {
                 col.whereEqualTo("employeeId", employeeId)
                     .get().await().documents.mapNotNull {
@@ -106,15 +157,26 @@ class LeaveRepository {
                 mapOf("status" to Constants.LeaveStatus.APPROVED, "approvedBy" to approvedBy)
             ).await()
             
-            val auditEnabled = AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)
-            if (auditEnabled) {
+            // Email ke karyawan (fire and forget)
+            try {
+                val leave = col.document(leaveId).get().await().toObject(LeaveRequest::class.java)
+                val employee = leave?.let {
+                    employeeRepo.getByUserId(it.employeeId) ?: employeeRepo.getById(it.employeeId)
+                }
+                if (leave != null && employee?.email?.isNotEmpty() == true) {
+                    val approver = employeeRepo.getByUserId(approvedBy)
+                    LeaveEmailNotifier.notifyEmployeeOfDecision(
+                        leave = leave, employeeEmail = employee.email,
+                        decision = "approved", approverName = approver?.name ?: approvedBy
+                    )
+                }
+            } catch (_: Exception) {}
+
+            if (AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)) {
                 AuditLogRepository().log(
-                    userId = approvedBy,
-                    userName = approvedBy,
-                    action = "LEAVE_APPROVED",
-                    module = "Leave",
-                    targetCollection = Constants.Collections.LEAVE_REQUESTS,
-                    targetId = leaveId,
+                    userId = approvedBy, userName = approvedBy,
+                    action = "LEAVE_APPROVED", module = "Leave",
+                    targetCollection = Constants.Collections.LEAVE_REQUESTS, targetId = leaveId,
                     details = "Approved by $approvedBy"
                 )
             }
@@ -129,19 +191,44 @@ class LeaveRepository {
                 mapOf("status" to Constants.LeaveStatus.REJECTED, "approvedBy" to approvedBy)
             ).await()
             
-            val auditEnabled = AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)
-            if (auditEnabled) {
+            // Email ke karyawan (fire and forget)
+            try {
+                val leave = col.document(leaveId).get().await().toObject(LeaveRequest::class.java)
+                val employee = leave?.let {
+                    employeeRepo.getByUserId(it.employeeId) ?: employeeRepo.getById(it.employeeId)
+                }
+                if (leave != null && employee?.email?.isNotEmpty() == true) {
+                    val approver = employeeRepo.getByUserId(approvedBy)
+                    LeaveEmailNotifier.notifyEmployeeOfDecision(
+                        leave = leave, employeeEmail = employee.email,
+                        decision = "rejected", approverName = approver?.name ?: approvedBy
+                    )
+                }
+            } catch (_: Exception) {}
+
+            if (AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)) {
                 AuditLogRepository().log(
-                    userId = approvedBy,
-                    userName = approvedBy,
-                    action = "LEAVE_REJECTED",
-                    module = "Leave",
-                    targetCollection = Constants.Collections.LEAVE_REQUESTS,
-                    targetId = leaveId,
+                    userId = approvedBy, userName = approvedBy,
+                    action = "LEAVE_REJECTED", module = "Leave",
+                    targetCollection = Constants.Collections.LEAVE_REQUESTS, targetId = leaveId,
                     details = "Rejected by $approvedBy"
                 )
             }
             
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun rejectWithReason(leaveId: String, approvedBy: String, reason: String): Result<Unit> {
+        return try {
+            col.document(leaveId).update(
+                mapOf(
+                    "status" to Constants.LeaveStatus.REJECTED,
+                    "approvedBy" to approvedBy,
+                    "autoRejected" to true,
+                    "rejectionReason" to reason
+                )
+            ).await()
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }

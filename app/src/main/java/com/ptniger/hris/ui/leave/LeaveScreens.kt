@@ -185,6 +185,10 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
 
                 LabeledField("Alasan", reason) { reason = it; validationError = null }
 
+                // Policy Warning
+                Text("* Berdasarkan kebijakan, pengajuan cuti mungkin ditolak otomatis oleh sistem jika tidak diajukan tepat waktu (misal: H-3).", 
+                    style = MaterialTheme.typography.labelSmall, color = Orange)
+
                 // Error / success messages
                 if (validationError != null) {
                     Surface(shape = RoundedCornerShape(10.dp), color = RedSoft) {
@@ -296,7 +300,9 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
                         LeaveRow(
                             title = leave.type,
                             date = displayDate,
-                            status = leave.status
+                            status = leave.status,
+                            rejectionReason = leave.rejectionReason,
+                            autoRejected = leave.autoRejected
                         )
                         if (idx < leaves.lastIndex) HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     }
@@ -496,29 +502,42 @@ private fun LabeledField(label: String, value: String, onChange: (String) -> Uni
 }
 
 @Composable
-private fun LeaveRow(title: String, date: String, status: String) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Text(date, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+private fun LeaveRow(title: String, date: String, status: String, rejectionReason: String? = null, autoRejected: Boolean = false) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(date, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
+            Spacer(Modifier.width(8.dp))
+            val (bg, fg) = when (status) {
+                "approved" -> GreenSoft to Green
+                "rejected" -> RedSoft to Red
+                else -> OrangeSoft to Orange
+            }
+            Surface(shape = RoundedCornerShape(999.dp), color = bg) {
+                Text(
+                    when (status) { "approved" -> "Disetujui"; "rejected" -> if (autoRejected) "Auto Reject" else "Ditolak"; else -> "Menunggu" },
+                    Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = fg
+                )
+            }
         }
-        Spacer(Modifier.width(8.dp))
-        val (bg, fg) = when (status) {
-            "approved" -> GreenSoft to Green
-            "rejected" -> RedSoft to Red
-            else -> OrangeSoft to Orange
-        }
-        Surface(shape = RoundedCornerShape(999.dp), color = bg) {
-            Text(
-                when (status) { "approved" -> "Disetujui"; "rejected" -> "Ditolak"; else -> "Menunggu" },
-                Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = fg
-            )
+        if (status == "rejected" && !rejectionReason.isNullOrBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Surface(shape = RoundedCornerShape(8.dp), color = RedSoft) {
+                Text(
+                    "Alasan: $rejectionReason",
+                    Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Red
+                )
+            }
         }
     }
 }

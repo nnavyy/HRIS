@@ -76,5 +76,6 @@ object AutomationEngine {
         const val ACCOUNT     = "account"
         const val AUDIT       = "audit"
         const val AI_REVIEW   = "ai_review"   // NEW: quarterly AI performance review
+        const val LEAVE_EXPIRY = "leave_expiry" // auto-expire pending leave past start date
     }
 }

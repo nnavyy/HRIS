@@ -45,17 +45,29 @@ class AiReviewViewModel : ViewModel() {
             try {
                 val employeeId = employee.userId.ifEmpty { employee.employeeId }
 
-                // Derive month/year from period (e.g., "2025-Q2" → use current month as approximation)
-                val cal = Calendar.getInstance()
-                val month = cal.get(Calendar.MONTH) + 1
-                val year = cal.get(Calendar.YEAR)
-                val monthStr = String.format("%04d-%02d", year, month)
+                // Parse year and quarter from period string "2025-Q2"
+                val yearStr = period.substringBefore("-Q")
+                val quarterNum = period.substringAfter("-Q").toIntOrNull() ?: 1
+                val yearInt = yearStr.toIntOrNull() ?: Calendar.getInstance().get(Calendar.YEAR)
 
-                // Parallel fetch of all data sources
-                val attendanceList = attendanceRepo.getMonthlyAttendance(employeeId, month, year)
+                // Calculate months in the quarter
+                val startMonth = (quarterNum - 1) * 3 + 1   // Q1→1, Q2→4, Q3→7, Q4→10
+                val endMonth = startMonth + 2                 // Q1→3, Q2→6, Q3→9, Q4→12
+
+                // Fetch attendance for all 3 months in the quarter
+                val attendanceList = (startMonth..endMonth).flatMap { m ->
+                    attendanceRepo.getMonthlyAttendance(employeeId, m, yearInt)
+                }
+
+                // Fetch peer review with mid-quarter month
+                val midMonth = startMonth + 1
+                val periodMonthStr = String.format("%04d-%02d", yearInt, midMonth)
+                val peerReviews = peerRepo.getByTarget(employeeId, periodMonthStr)
+
+                // KPI scores use the period string directly (e.g. "2025-Q2")
                 val kpiScores = kpiRepo.getScoresByEmployee(employeeId, period)
+                // Leave history: fetch all for this employee
                 val leaveHistory = leaveRepo.getByEmployee(employeeId)
-                val peerReviews = peerRepo.getByTarget(employeeId, monthStr)
 
                 val result = AiReviewEngine.generatePerformanceReview(
                     employee = employee,

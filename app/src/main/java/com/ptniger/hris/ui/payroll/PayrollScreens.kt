@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -108,48 +111,76 @@ fun PayrollScreen(user: User, onBack: () -> Unit = {}, vm: PayrollViewModel = vi
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Generate Payroll", style = MaterialTheme.typography.titleMedium)
                 
-                // Employee Dropdown with Search
-                ExposedDropdownMenuBox(expanded = empExpanded, onExpandedChange = { empExpanded = !empExpanded }) {
-                    OutlinedTextField(
-                        value = if (empName.isNotEmpty()) "$empName (${empId.take(8)})" else "Pilih Karyawan",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Karyawan") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = empExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    ExposedDropdownMenu(expanded = empExpanded, onDismissRequest = { empExpanded = false; empSearch = "" }) {
-                        // Search field
-                        OutlinedTextField(
-                            value = empSearch,
-                            onValueChange = { empSearch = it },
-                            placeholder = { Text("Cari nama/NIK...") },
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        if (filteredEmployees.isEmpty()) {
-                            DropdownMenuItem(text = { Text("Tidak ada karyawan ditemukan") }, onClick = {})
-                        }
-                        filteredEmployees.forEach { emp ->
-                            DropdownMenuItem(
-                                text = { 
-                                    Column {
-                                        Text(emp.name, style = MaterialTheme.typography.bodyMedium)
-                                        Text("NIK: ${emp.nik} • ${emp.position}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-                                    }
-                                },
-                                onClick = {
-                                    empId = emp.employeeId
-                                    empName = emp.name
-                                    baseSalary = emp.baseSalary.toLong().toString()
-                                    empExpanded = false
-                                    empSearch = ""
+                // Employee Picker (AlertDialog instead of ExposedDropdownMenu)
+                val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                OutlinedTextField(
+                    value = if (empName.isNotEmpty()) "$empName (${empId.take(8)})" else "Pilih Karyawan",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Karyawan") },
+                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, "Dropdown") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    interactionSource = interactionSource.also { interaction ->
+                        LaunchedEffect(interaction) {
+                            interaction.interactions.collect {
+                                if (it is androidx.compose.foundation.interaction.PressInteraction.Release) {
+                                    empExpanded = true
                                 }
-                            )
+                            }
                         }
                     }
+                )
+
+                if (empExpanded) {
+                    AlertDialog(
+                        onDismissRequest = { empExpanded = false; empSearch = "" },
+                        title = { Text("Pilih Karyawan") },
+                        text = {
+                            Column {
+                                OutlinedTextField(
+                                    value = empSearch,
+                                    onValueChange = { empSearch = it },
+                                    placeholder = { Text("Cari nama/NIK...") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                androidx.compose.foundation.lazy.LazyColumn(
+                                    modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
+                                ) {
+                                    if (filteredEmployees.isEmpty()) {
+                                        item { Text("Tidak ada karyawan", Modifier.padding(16.dp)) }
+                                    }
+                                    items(filteredEmployees) { emp ->
+                                        Column(Modifier.fillMaxWidth().clickable {
+                                            empId = emp.employeeId
+                                            empName = emp.name
+                                            baseSalary = emp.baseSalary.toLong().toString()
+                                            
+                                            // Auto-fill overtime
+                                            vm.getAutoOvertimeHours(emp.employeeId) { hours ->
+                                                overtime = if (hours > 0) hours.toString() else "0.0"
+                                            }
+                                            
+                                            empExpanded = false
+                                            empSearch = ""
+                                        }.padding(16.dp)) {
+                                            Text(emp.name, style = MaterialTheme.typography.bodyMedium)
+                                            Text("NIK: ${emp.nik} • ${emp.position}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                        }
+                                        HorizontalDivider()
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { empExpanded = false; empSearch = "" }) {
+                                Text("Tutup")
+                            }
+                        }
+                    )
                 }
 
                 OutlinedTextField(baseSalary, { if (it.isEmpty() || it.all { char -> char.isDigit() || char == '.' }) baseSalary = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), label = { Text("Gaji Pokok") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))

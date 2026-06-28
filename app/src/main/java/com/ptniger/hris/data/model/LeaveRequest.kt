@@ -12,5 +12,7 @@ data class LeaveRequest(
     val reason: String = "",
     val status: String = "pending",
     val approvedBy: String = "",
+    val rejectionReason: String = "",   // alasan penolakan (manual atau auto)
+    val autoRejected: Boolean = false,  // true jika ditolak sistem
     val createdAt: Long = System.currentTimeMillis()
 )

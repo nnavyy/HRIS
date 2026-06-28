@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -69,11 +72,8 @@ fun AiReviewScreen(
             .verticalScroll(rememberScrollState())
     ) {
         // Top bar
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) }
+        Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) }
             Column(Modifier.padding(start = 4.dp)) {
                 Text("AI Performance Review", style = MaterialTheme.typography.titleLarge)
                 Text("Powered by Groq · Llama 3.3", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
@@ -87,24 +87,72 @@ fun AiReviewScreen(
             if (isLoadingEmps) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
             } else {
-                ExposedDropdownMenuBox(expanded = expandedEmp, onExpandedChange = { expandedEmp = it }) {
-                    OutlinedTextField(
-                        value = selectedEmployee?.name ?: "Pilih karyawan...",
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        shape = RoundedCornerShape(16.dp),
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEmp) },
-                        leadingIcon = { Icon(Icons.Default.Person, null, tint = Blue) }
-                    )
-                    ExposedDropdownMenu(expanded = expandedEmp, onDismissRequest = { expandedEmp = false }) {
-                        employees.forEach { emp ->
-                            DropdownMenuItem(
-                                text = { Text("${emp.name} · ${emp.position}") },
-                                onClick = { selectedEmployee = emp; expandedEmp = false }
-                            )
+                // -- Employee selector --
+                val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                OutlinedTextField(
+                    value = selectedEmployee?.name ?: "Pilih karyawan...",
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, "Dropdown") },
+                    leadingIcon = { Icon(Icons.Default.Person, null, tint = Blue) },
+                    interactionSource = interactionSource.also { interaction ->
+                        LaunchedEffect(interaction) {
+                            interaction.interactions.collect {
+                                if (it is androidx.compose.foundation.interaction.PressInteraction.Release) {
+                                    expandedEmp = true
+                                }
+                            }
                         }
                     }
+                )
+
+                if (expandedEmp) {
+                    var empSearch by remember { mutableStateOf("") }
+                    val filteredEmployees = if (empSearch.isBlank()) employees else employees.filter {
+                        it.name.contains(empSearch, ignoreCase = true) || it.nik.contains(empSearch, ignoreCase = true)
+                    }
+
+                    AlertDialog(
+                        onDismissRequest = { expandedEmp = false },
+                        title = { Text("Pilih Karyawan") },
+                        text = {
+                            Column {
+                                OutlinedTextField(
+                                    value = empSearch,
+                                    onValueChange = { empSearch = it },
+                                    placeholder = { Text("Cari nama/NIK...") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                androidx.compose.foundation.lazy.LazyColumn(
+                                    modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
+                                ) {
+                                    if (filteredEmployees.isEmpty()) {
+                                        item { Text("Tidak ada karyawan", Modifier.padding(16.dp)) }
+                                    }
+                                    items(filteredEmployees) { emp ->
+                                        Column(Modifier.fillMaxWidth().clickable {
+                                            selectedEmployee = emp
+                                            expandedEmp = false
+                                        }.padding(16.dp)) {
+                                            Text(emp.name, style = MaterialTheme.typography.bodyMedium)
+                                            Text("NIK: ${emp.nik} • ${emp.position}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                        }
+                                        HorizontalDivider()
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { expandedEmp = false }) {
+                                Text("Tutup")
+                            }
+                        }
+                    )
                 }
             }
 

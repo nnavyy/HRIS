@@ -36,5 +36,9 @@ data class Attendance(
     val deviceId: String = "",
     val appVersion: String = "",
     
+    // Schedule & Early Leave
+    val isEarlyLeave: Boolean = false,       // flag pulang sebelum earlyLeaveBuffer
+    val workScheduleId: String = "",         // jadwal yang dipakai saat absen (untuk audit)
+    
     val createdAt: Long = System.currentTimeMillis()
 )

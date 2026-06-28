@@ -15,5 +15,6 @@ data class Employee(
     val employmentStatus: String = "active",
     val baseSalary: Double = 0.0,
     val leaveQuota: Int = 12,
-    val userId: String = ""
+    val userId: String = "",
+    val workScheduleId: String = "default"   // jadwal kerja yang di-assign
 )
