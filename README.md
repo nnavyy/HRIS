@@ -1,257 +1,67 @@
-# HRIS Mobile Application
+# HRIS - Aplikasi Manajemen SDM Digital
 
-A native Android application for Human Resource Information System (HRIS) built with Jetpack Compose and Firebase. The application provides role-based dashboards and self-service features for managing employees, attendance, leave, payroll, and KPI across an organization.
+Aplikasi HRIS (Human Resource Information System) adalah platform digital terpadu yang dirancang untuk mempermudah, mengotomatisasi, dan mendigitalkan seluruh proses manajemen Sumber Daya Manusia di perusahaan. 
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Firebase Setup](#firebase-setup)
-- [Build and Run](#build-and-run)
-- [Role-Based Access](#role-based-access)
-- [Firestore Collections](#firestore-collections)
-- [Security Notes](#security-notes)
-- [Legal](#legal)
+Aplikasi ini tidak hanya sekadar alat pencatat absen, melainkan sebuah ekosistem lengkap yang menghubungkan Karyawan, Manajer, HRD, hingga tim Keuangan (Finance) dalam satu alur kerja (alur proses) yang transparan dan efisien.
 
 ---
 
-## Legal
-
-This application processes sensitive employee personal data. Prior to deployment or use, all users and administrators must review the applicable legal documents:
-
-- [Privacy Policy](./PRIVACY_POLICY.md) — describes what data is collected, how it is used, retained, and protected, and outlines the rights of data subjects under UU PDP No. 27/2022 and GDPR 2016/679
-- [Terms of Service](./TERMS_OF_SERVICE.md) — defines permitted use, prohibited conduct, role-based access obligations, and the legal framework governing use of the Application
-
-The Application and its operators are subject to the laws of the Republic of Indonesia. Cross-border data processing through Firebase is subject to Google's Data Processing Addendum.
+## 🎯 Kegunaan Utama
+1. **Mendisiplinkan Kehadiran**: Mencegah titip absen dengan sistem validasi GPS (berdasarkan lokasi kantor) dan foto *selfie* langsung dari kamera.
+2. **Otomatisasi Penilaian Kinerja (KPI)**: Kinerja dinilai secara objektif menggunakan data absensi (keterlambatan mengurangi skor), *Peer Review* (penilaian antar rekan kerja dengan sistem bintang 1-5), dan dirangkum secara cerdas oleh AI.
+3. **Digitalisasi Dokumen**: Mengubah proses tanda tangan kontrak kerja yang tadinya di atas kertas menjadi tanda tangan digital (*e-signature*) langsung di layar HP.
+4. **Transparansi Gaji & Cuti**: Karyawan dapat melihat sisa jatah cuti, memantau status persetujuan cuti, serta mengunduh slip gaji bulanan mereka sendiri tanpa perlu terus-menerus bertanya ke HRD.
 
 ---
 
-## Overview
+## 👥 Alur Kerja Berdasarkan Peran (Role)
 
-The HRIS Mobile Application serves five distinct user roles within an organization. Each role has its own dashboard, navigation structure, and set of accessible features. Authentication is handled exclusively through Firebase Authentication using email and password credentials. All application data is stored in Cloud Firestore.
+Aplikasi ini memiliki 5 jenis pengguna dengan hak akses dan *dashboard* yang berbeda-beda agar setiap orang hanya fokus pada tugasnya masing-masing.
 
----
+### 1. Karyawan (Employee)
+Karyawan adalah pengguna utama aplikasi untuk keperluan *self-service*.
+- **Alur Absensi**: Setiap pagi dan sore, karyawan membuka aplikasi untuk melakukan *Check-In* dan *Check-Out*. Sistem akan mengecek apakah lokasi HP karyawan berada di dalam radius kantor. Karyawan juga diwajibkan melakukan *selfie*.
+- **Alur Cuti**: Karyawan dapat mengajukan cuti dengan memilih tanggal. Sistem otomatis mengecek apakah sisa cuti masih ada dan apakah pengajuan dilakukan tidak mendadak (mematuhi aturan H-sekian). Pengajuan cuti ini akan masuk ke Manajer untuk disetujui.
+- **Alur Penilaian (Peer Review)**: Karyawan dapat memberikan penilaian rekan kerjanya menggunakan sistem 1-5 Bintang untuk menilai performa, kualitas, kontribusi, dan etika.
+- **Alur Tanda Tangan**: Karyawan baru dapat membaca draf kontrak kerja dan langsung menandatanganinya di layar HP.
+- **Alur Slip Gaji**: Karyawan dapat melihat slip gaji yang sudah di-generate oleh tim HR dan disetujui oleh Finance setiap bulannya.
 
-## Features
+### 2. Manajer (Manager)
+Manajer bertugas mengawasi tim di bawah departemennya.
+- **Alur Persetujuan Cuti**: Ketika karyawan di timnya mengajukan cuti, Manajer akan mendapat notifikasi. Manajer berhak menekan tombol *Setujui* atau *Tolak*. 
+- **Pantauan Tim**: Manajer memiliki menu khusus untuk memantau siapa saja di timnya yang hadir, absen, atau sedang cuti pada hari ini.
 
-### Authentication
-- Email and password login with input validation and whitespace trimming
-- Persistent session management across app restarts
-- Password reset via Firebase email link (Forgot Password)
-- Role-based post-login routing to the appropriate dashboard
+### 3. HRD (HR / Admin)
+HRD adalah penggerak utama administrasi perusahaan.
+- **Alur Data Master**: HRD membuat akun untuk karyawan baru, mendaftarkan wajah karyawan, dan mengatur jadwal kerja karyawan (misal: Shift Pagi, Shift Malam).
+- **Alur Penilaian AI (AI Review)**: Di akhir bulan, HRD dapat menekan tombol **"Generate AI Review"**. Aplikasi akan mengirimkan data absensi, data keterlambatan, dan hasil *peer review* ke kecerdasan buatan (AI Groq/Llama 3). AI akan membuatkan laporan evaluasi kinerja secara otomatis beserta saran perbaikan untuk karyawan tersebut!
+- **Alur Penggajian (Payroll)**: HRD menekan tombol *Generate Payroll* di akhir bulan. Sistem akan menghitung gaji pokok, memotong gaji karena keterlambatan (otomatis terhubung ke absensi), dan menghitung uang lembur. Draft slip gaji ini kemudian dikirim ke departemen Finance.
+- **Alur Kontrak**: HRD membuat draf kontrak untuk karyawan dan memantau status tanda tangannya.
 
-### Super Admin
-- Full system management dashboard with live metrics (active accounts, active roles, automation rules, audit events)
-- Create and manage employee accounts
-- Role and access management per user
-- Office location management for GPS-based attendance validation
-- Audit log viewer for all system events
+### 4. Keuangan (Finance)
+Departemen Keuangan bertugas memastikan tidak ada kesalahan angka sebelum uang dicairkan.
+- **Alur Validasi Gaji**: Finance akan menerima *draft* gaji yang dibuat HRD. Setelah di-cek dan dirasa sesuai, Finance akan menekan tombol *Approve*. Barulah slip gaji tersebut muncul di aplikasi Karyawan.
 
-### HR / Admin
-- HR dashboard with total employee count, pending approvals, and attendance metrics
-- Employee master data management (create, edit, view)
-- Leave request approval workflow
-- KPI configuration per employee
-- KPI scoring submission
-- Payroll generation and management
-- Access to system audit log
-
-### Finance
-- Finance dashboard focused on payroll processing metrics
-- Payroll generation and approval management
-- Salary slip generation and viewing
-
-### Manager
-- Manager dashboard showing team member count and pending leave requests
-- Leave approval for direct reports
-- Payroll approval
-- Team attendance monitoring
-
-### Employee (Self-Service)
-- Personal dashboard with check-in status, remaining leave quota, KPI score, and unread notifications
-- GPS and photo-based daily attendance (check-in and check-out)
-- Leave request submission with quota validation
-- Leave request history with status tracking (pending, approved, rejected)
-- Salary slip viewing
-- Personal KPI result viewing
-- Profile management with profile photo upload to Firebase Storage
-- Notification center
-
-### Automation Rules
-- Configurable system automation including leave quota enforcement, payroll auto-generation trigger, and audit logging
+### 5. Super Admin
+Super Admin adalah pemilik sistem (biasanya tim IT perusahaan) yang memiliki kontrol penuh.
+- **Pengaturan Inti**: Super Admin mengatur titik lokasi GPS kantor pusat dan cabang, radius toleransi absen (misal: 50 meter), mengatur hak akses pengguna (siapa yang jadi HR, siapa yang jadi Manager), dan menyetel *API Key* untuk sistem AI.
+- **Audit**: Super Admin dapat melihat jejak aktivitas (siapa mengubah apa, jam berapa).
 
 ---
 
-## Architecture
+## 🔄 Bagaimana Fitur-fiturnya Saling Terhubung?
 
-The application follows a standard Android MVVM architecture:
+Aplikasi ini tidak bekerja sendiri-sendiri, melainkan saling menunjang:
 
-- **UI Layer**: Jetpack Compose screens and composables organized by feature module
-- **ViewModel Layer**: `ViewModel` classes with `StateFlow` for reactive UI state management
-- **Repository Layer**: Repository classes that interface with Firebase Firestore and Firebase Auth
-- **Model Layer**: Kotlin data classes representing Firestore document schemas
+1. **Jadwal Kerja ➔ Absensi ➔ Pemotongan Gaji**
+   HR mengatur jadwal kerja `Masuk jam 08:00`. Jika karyawan absen jam `08:30`, sistem mencatat "Telat 30 Menit". Saat HR membuat Slip Gaji di akhir bulan, gaji otomatis dipotong berdasarkan total menit keterlambatan tersebut.
 
-Navigation is handled by a single `NavHost` with two destinations: the login screen and the main scaffold. The main scaffold uses route-based rendering (`currentRoute` state) rather than a nested `NavHost` to keep navigation state simple and predictable.
+2. **Absensi ➔ KPI Otomatis ➔ AI Review**
+   Setiap kali karyawan telat, skor *Kedisiplinan* (KPI) mereka akan otomatis berkurang oleh sistem di latar belakang. Skor yang berkurang ini, digabungkan dengan ulasan Bintang dari rekan kerja, akan dikirim ke **AI** untuk dicerna. AI kemudian akan memberikan kesimpulan evaluasi bulanan yang bisa dibaca oleh Manajer dan HR.
 
----
-
-## Tech Stack
-
-| Component | Technology |
-|---|---|
-| Language | Kotlin |
-| UI Framework | Jetpack Compose |
-| Navigation | Navigation Compose |
-| Authentication | Firebase Authentication |
-| Database | Cloud Firestore |
-| Storage | Firebase Storage |
-| Image Loading | Coil |
-| Location | Google Play Services Location |
-| Camera | CameraX |
-| Async | Kotlin Coroutines |
-| Build System | Gradle (Kotlin DSL) |
-| Min SDK | 24 (Android 7.0) |
-| Target SDK | 36 |
+3. **Kuota Cuti ➔ Pengajuan Cuti ➔ Penolakan Otomatis**
+   Sistem mengatur batas pengajuan cuti minimal H-3. Jika karyawan memaksakan mengajukan cuti untuk besok pagi, sistem akan **menolak (Auto-Reject)** pengajuan tersebut secara otomatis tanpa perlu menunggu keputusan Manajer.
 
 ---
 
-## Project Structure
-
-```
-app/src/main/java/com/ptniger/hris/
-├── data/
-│   ├── model/          # Firestore data models (User, Employee, LeaveRequest, etc.)
-│   └── repository/     # Firebase data access layer
-├── ui/
-│   ├── admin/          # Super Admin screens (account management, automation, roles)
-│   ├── attendance/     # Attendance check-in/check-out and monitoring screens
-│   ├── audit/          # Audit log screen
-│   ├── auth/           # Login screen and forgot password dialog
-│   ├── dashboard/      # Role-specific dashboard screens and shared components
-│   ├── employee/       # Employee list and form screens
-│   ├── kpi/            # KPI configuration, scoring, and result screens
-│   ├── leave/          # Leave request and approval screens
-│   ├── navigation/     # AppNavigation, MainScaffold, and BottomNavBar
-│   ├── notification/   # Notification center screen
-│   ├── payroll/        # Payroll generation, approval, and salary slip screens
-│   ├── profile/        # Profile screen with photo upload
-│   ├── report/         # Report screen
-│   ├── superadmin/     # Super Admin user creation ViewModel
-│   └── theme/          # Color palette, typography, and Material theme
-└── utils/
-    ├── AutomationEngine.kt  # Rule-based automation processor
-    ├── Constants.kt         # App-wide constants (roles, collections, statuses)
-    ├── DateUtils.kt         # Date formatting utilities
-    ├── KpiCalculator.kt     # KPI scoring and bonus calculation logic
-    └── RoleManager.kt       # Role-to-navigation mapping
-```
-
----
-
-## Firebase Setup
-
-1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com).
-2. Add an Android app with package name `com.ptniger.hris`.
-3. Register your debug signing certificate SHA-1 fingerprint in Project Settings. To obtain the SHA-1, run:
-   ```
-   ./gradlew signingReport
-   ```
-4. Download the `google-services.json` file and place it in the `app/` directory.
-5. Enable **Email/Password** as a sign-in provider under Authentication.
-6. Create a Firestore database in production or test mode.
-7. Set up Firestore security rules appropriate for your environment.
-8. Enable Firebase Storage for profile photo uploads.
-
-### Initial Admin Account
-
-Because the application does not expose a public registration screen, the first administrator account must be created manually:
-
-1. Go to Firebase Console > Authentication > Users > Add User.
-2. Create the account with an email and password.
-3. Copy the generated User UID.
-4. Go to Firestore > Create collection `users` > Add document with the copied UID as the document ID.
-5. Add the following fields to the document:
-   - `email` (string)
-   - `name` (string)
-   - `role` (string): `super_admin`
-   - `roles` (array): `["super_admin"]`
-   - `primaryRole` (string): `super_admin`
-
----
-
-## Build and Run
-
-### Prerequisites
-
-- Android Studio Hedgehog or later
-- JDK 11
-- Android SDK with platform 35 or 36 installed
-- A physical Android device or emulator running API 24 or higher
-
-### Steps
-
-1. Clone the repository.
-2. Place `google-services.json` in the `app/` directory.
-3. Open the project in Android Studio.
-4. Sync Gradle dependencies.
-5. Connect a device via USB with USB Debugging enabled, or start an emulator.
-6. Run the application using:
-   ```
-   ./gradlew installDebug
-   ```
-
----
-
-## Role-Based Access
-
-| Feature | Super Admin | HR | Finance | Manager | Employee |
-|---|:---:|:---:|:---:|:---:|:---:|
-| Dashboard | Yes | Yes | Yes | Yes | Yes |
-| Employee Management | Yes | Yes | No | No | No |
-| Leave Request | No | No | No | No | Yes |
-| Leave Approval | No | Yes | No | Yes | No |
-| Attendance (Self) | No | No | No | No | Yes |
-| Attendance Monitor | No | Yes | No | Yes | No |
-| KPI Configuration | No | Yes | No | No | No |
-| KPI Scoring | No | Yes | No | No | No |
-| KPI Results (Self) | No | No | No | No | Yes |
-| Payroll Generation | No | Yes | Yes | No | No |
-| Payroll Approval | No | No | No | Yes | No |
-| Salary Slip | No | No | No | No | Yes |
-| Role Management | Yes | No | No | No | No |
-| Automation Rules | Yes | No | No | No | No |
-| Office Locations | Yes | No | No | No | No |
-| Audit Log | Yes | Yes | Yes | No | No |
-| Profile | Yes | Yes | Yes | Yes | Yes |
-
----
-
-## Firestore Collections
-
-| Collection | Purpose |
-|---|---|
-| `users` | Authentication-linked user records with role and profile data |
-| `employees` | Employee master data including department, branch, and leave quota |
-| `attendance` | Daily attendance check-in and check-out records |
-| `leave_requests` | Leave submissions with status tracking |
-| `kpi_configs` | KPI metric configurations per employee or department |
-| `kpi_scores` | KPI scoring results per employee per period |
-| `payrolls` | Payroll records including salary components and approval status |
-| `notifications` | In-app notifications per user |
-| `audit_logs` | System-wide event audit trail |
-| `automation_rules` | Configurable automation rule states |
-| `office_locations` | GPS coordinates for geofencing-based attendance validation |
-
----
-
-## Security Notes
-
-- All write operations should be protected by Firestore security rules that verify the caller's role stored in the `users` collection.
-- The `google-services.json` file contains the Firebase API key and project identifiers. Do not commit this file to a public repository.
-- Firebase Email Enumeration Protection is active by default on newer projects. Authentication errors are intentionally generic to prevent user enumeration.
-- The debug keystore SHA-1 must be registered in Firebase Project Settings for authentication to work on development builds. Release builds require a separate release keystore registration.
+*Aplikasi ini memastikan proses administrasi SDM yang tadinya memakan waktu berhari-hari (karena rekap manual Excel dan kertas) kini dapat diselesaikan hanya dalam beberapa klik saja dari genggaman tangan.*
