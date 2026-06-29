@@ -166,6 +166,7 @@ fun MainScaffold(
                     "ai_review" -> AiReviewScreen(user = user, onBack = { onNavigate("dashboard") })
                     "work_schedule_config" -> WorkScheduleScreen(user = user, onBack = { onNavigate("dashboard") })
                     "leave_policy" -> LeavePolicyScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "app_config" -> com.ptniger.hris.ui.superadmin.AppConfigScreen(onBack = { onNavigate("dashboard") })
                     else -> {
                         if (currentRoute.startsWith("employee_form_")) {
                             val id = currentRoute.removePrefix("employee_form_")

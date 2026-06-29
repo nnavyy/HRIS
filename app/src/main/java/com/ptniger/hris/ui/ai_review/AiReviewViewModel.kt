@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ptniger.hris.data.model.AiReview
 import com.ptniger.hris.data.model.Employee
 import com.ptniger.hris.data.repository.AiReviewRepository
+import com.ptniger.hris.data.repository.AppConfigRepository
 import com.ptniger.hris.data.repository.AttendanceRepository
 import com.ptniger.hris.data.repository.KpiRepository
 import com.ptniger.hris.data.repository.LeaveRepository
@@ -34,6 +35,7 @@ class AiReviewViewModel : ViewModel() {
     private val kpiRepo = KpiRepository()
     private val leaveRepo = LeaveRepository()
     private val peerRepo = PeerReviewRepository()
+    private val configRepo = AppConfigRepository()
 
     /**
      * Generate AI review on demand for a specific employee and period.
@@ -69,6 +71,15 @@ class AiReviewViewModel : ViewModel() {
                 // Leave history: fetch all for this employee
                 val leaveHistory = leaveRepo.getByEmployee(employeeId)
 
+                val apiKey = configRepo.getGroqApiKey()
+                if (apiKey.isBlank()) {
+                    _state.value = _state.value.copy(
+                        isGenerating = false,
+                        error = "API Key Groq belum di-set. Hubungi Super Admin."
+                    )
+                    return@launch
+                }
+
                 val result = AiReviewEngine.generatePerformanceReview(
                     employee = employee,
                     period = period,
@@ -77,6 +88,7 @@ class AiReviewViewModel : ViewModel() {
                     leaveHistory = leaveHistory,
                     peerReviews = peerReviews,
                     generatedBy = generatedByUserId,
+                    apiKey = apiKey,
                     triggerType = "on_demand"
                 )
 

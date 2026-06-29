@@ -209,6 +209,8 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Lokasi Kantor (GPS Absensi)", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
         Spacer(Modifier.height(8.dp))
+        QuickActionButton("Pengaturan Sistem (API Key)", Icons.Default.Settings, TealSoft, Teal) { onNavigate("app_config") }
+        Spacer(Modifier.height(8.dp))
         QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }

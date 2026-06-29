@@ -19,11 +19,23 @@ class KpiRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun getConfigs(department: String): List<KpiConfig> {
+    suspend fun getConfigs(departmentId: String): List<KpiConfig> {
         return try {
-            configCol.whereEqualTo("department", department).get().await().documents.mapNotNull {
+            configCol.whereEqualTo("departmentId", departmentId).get().await().documents.mapNotNull {
                 it.toObject(KpiConfig::class.java)?.copy(configId = it.id)
             }
+        } catch (e: Exception) { emptyList() }
+    }
+
+    suspend fun getActiveConfigs(departmentId: String, period: String): List<KpiConfig> {
+        return try {
+            configCol
+                .whereEqualTo("departmentId", departmentId)
+                .whereEqualTo("period", period)
+                .whereEqualTo("isActive", true)
+                .get().await().documents.mapNotNull {
+                    it.toObject(KpiConfig::class.java)?.copy(configId = it.id)
+                }
         } catch (e: Exception) { emptyList() }
     }
 
@@ -47,6 +59,46 @@ class KpiRepository {
         return try {
             val ref = scoreCol.add(score).await()
             Result.success(ref.id)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun updateScore(
+        employeeId: String, employeeName: String, configId: String, kpiName: String,
+        score: Int, weight: Double, period: String, scoredBy: String,
+        source: String, autoDetails: String
+    ): Result<String> {
+        return try {
+            // Check if score already exists for this period and config
+            val existing = scoreCol
+                .whereEqualTo("employeeId", employeeId)
+                .whereEqualTo("configId", configId)
+                .whereEqualTo("period", period)
+                .get().await().documents.firstOrNull()
+
+            val kpiScore = KpiScore(
+                employeeId = employeeId,
+                employeeName = employeeName,
+                configId = configId,
+                kpiName = kpiName,
+                score = score,
+                weight = weight,
+                weightedScore = score * weight,
+                period = period,
+                scoredBy = scoredBy,
+                source = source,
+                autoDetails = autoDetails,
+                updatedAt = System.currentTimeMillis()
+            )
+
+            if (existing != null) {
+                // Update existing
+                scoreCol.document(existing.id).set(kpiScore.copy(scoreId = existing.id, createdAt = existing.getLong("createdAt") ?: System.currentTimeMillis())).await()
+                Result.success(existing.id)
+            } else {
+                // Insert new
+                val ref = scoreCol.add(kpiScore).await()
+                Result.success(ref.id)
+            }
         } catch (e: Exception) { Result.failure(e) }
     }
 

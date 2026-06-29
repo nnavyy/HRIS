@@ -119,7 +119,9 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
 
                 // Leave type dropdown
                 var typeExpanded by remember { mutableStateOf(false) }
-                val leaveTypes = listOf("Cuti Tahunan", "Cuti Sakit", "Cuti Melahirkan", "Izin")
+                val leaveTypes = listOf("Cuti Tahunan", "Cuti Sakit", "Cuti Melahirkan", "Izin", "Darurat")
+                val emergencyTypes = listOf("Cuti Sakit", "Cuti Melahirkan", "Darurat")
+                
                 Column {
                     Text("Jenis Cuti", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                     Spacer(Modifier.height(4.dp))
@@ -135,7 +137,14 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(type, style = MaterialTheme.typography.bodyMedium)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(type, style = MaterialTheme.typography.bodyMedium)
+                                if (emergencyTypes.contains(type)) {
+                                    Surface(shape = RoundedCornerShape(4.dp), color = RedSoft) {
+                                        Text("Darurat", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Red)
+                                    }
+                                }
+                            }
                             Icon(Icons.Default.ArrowDropDown, null, tint = TextSecondary)
                         }
                     }
@@ -145,7 +154,16 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
                     ) {
                         leaveTypes.forEach { t ->
                             DropdownMenuItem(
-                                text = { Text(t) },
+                                text = { 
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(t) 
+                                        if (emergencyTypes.contains(t)) {
+                                            Surface(shape = RoundedCornerShape(4.dp), color = RedSoft) {
+                                                Text("Darurat", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Red)
+                                            }
+                                        }
+                                    }
+                                },
                                 onClick = { type = t; typeExpanded = false }
                             )
                         }
@@ -186,8 +204,14 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
                 LabeledField("Alasan", reason) { reason = it; validationError = null }
 
                 // Policy Warning
-                Text("* Berdasarkan kebijakan, pengajuan cuti mungkin ditolak otomatis oleh sistem jika tidak diajukan tepat waktu (misal: H-3).", 
-                    style = MaterialTheme.typography.labelSmall, color = Orange)
+                Column {
+                    Text("* Berdasarkan kebijakan, pengajuan cuti mungkin ditolak otomatis oleh sistem jika tidak diajukan tepat waktu (misal: H-3).", 
+                        style = MaterialTheme.typography.labelSmall, color = Orange)
+                    if (emergencyTypes.contains(type)) {
+                        Text("* Cuti tipe Darurat tidak memotong kuota dan mengabaikan aturan batas H-3.", 
+                            style = MaterialTheme.typography.labelSmall, color = Red, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
 
                 // Error / success messages
                 if (validationError != null) {
@@ -318,12 +342,12 @@ fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel 
     val pending by vm.pending.collectAsState()
     val message by vm.message.collectAsState()
     LaunchedEffect(Unit) {
-        val effectiveRole = user.primaryRole.ifEmpty { user.role }
-        if (effectiveRole == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN || effectiveRole == com.ptniger.hris.utils.Constants.Role.HR) {
-            vm.loadPending("")
-        } else {
-            vm.loadPending(user.departmentId)
-        }
+        val role = user.primaryRole.ifEmpty { user.role }
+        val employeeRepo = com.ptniger.hris.data.repository.EmployeeRepository()
+        val employee = employeeRepo.getByUserId(user.userId)
+        val empId = employee?.employeeId ?: user.employeeId
+
+        vm.loadPendingForApprover(empId, role)
     }
 
     Column(
@@ -371,6 +395,24 @@ fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel 
                 shadowElevation = 1.dp
             ) {
                 Column(Modifier.padding(14.dp)) {
+                    val role = user.primaryRole.ifEmpty { user.role }
+                    val isSuperAdmin = role == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN
+
+                    if (leave.requesterRole == com.ptniger.hris.utils.Constants.Role.MANAGER) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = PurpleSoft,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        ) {
+                            Text(
+                                "Diajukan oleh Manager → HR yang approve",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Purple
+                            )
+                        }
+                    }
+
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
                             Text(leave.employeeName, style = MaterialTheme.typography.titleSmall)
@@ -385,18 +427,30 @@ fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel 
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { vm.approve(leave.leaveId, user.userId) },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Green),
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Setuju") }
-                        OutlinedButton(
-                            onClick = { vm.reject(leave.leaveId, user.userId) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Tolak", color = Red) }
+                    
+                    if (!isSuperAdmin) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { vm.approve(leave.leaveId, user.userId) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Green),
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Setuju") }
+                            OutlinedButton(
+                                onClick = { vm.reject(leave.leaveId, user.userId) },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Tolak", color = Red) }
+                        }
+                    } else {
+                        Surface(shape = RoundedCornerShape(8.dp), color = CardBorder.copy(alpha = 0.3f)) {
+                            Text(
+                                "👁 Mode Audit — Super Admin tidak bisa approve cuti",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary
+                            )
+                        }
                     }
                 }
             }

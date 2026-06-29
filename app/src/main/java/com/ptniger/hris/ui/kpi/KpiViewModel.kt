@@ -44,8 +44,19 @@ class KpiViewModel : ViewModel() {
 
     fun submitScore(score: KpiScore) {
         viewModelScope.launch {
-            kpiRepo.submitScore(score).fold(
-                onSuccess = { _message.value = "Skor disimpan" },
+            kpiRepo.updateScore(
+                employeeId = score.employeeId,
+                employeeName = score.employeeName,
+                configId = score.configId,
+                kpiName = score.kpiName,
+                score = score.score,
+                weight = score.weight,
+                period = score.period,
+                scoredBy = score.scoredBy,
+                source = "manual",
+                autoDetails = ""
+            ).fold(
+                onSuccess = { _message.value = "Skor disimpan"; loadScores(score.employeeId) },
                 onFailure = { _message.value = "Error: ${it.message}" }
             )
         }

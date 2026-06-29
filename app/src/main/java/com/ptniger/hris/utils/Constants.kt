@@ -74,5 +74,6 @@ object Constants {
         const val WORK_SCHEDULES = "work_schedules"
         const val LEAVE_POLICIES = "leave_policies"
         const val EMAIL_QUEUE = "email_queue"
+        const val APP_CONFIGS = "app_configs"
     }
 }

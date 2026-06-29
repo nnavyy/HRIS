@@ -29,6 +29,7 @@ object SeedDataManager {
         try { totalInserted += seedKpiScores() }       catch (e: Exception) { errors.add("kpi_scores: ${e.message}") }
         try { totalInserted += seedPeerReviews() }     catch (e: Exception) { errors.add("peer_reviews: ${e.message}") }
         try { totalInserted += seedPayrolls() }        catch (e: Exception) { errors.add("payrolls: ${e.message}") }
+        try { totalInserted += seedAppConfigs() }      catch (e: Exception) { errors.add("app_configs: ${e.message}") }
 
         return SeedResult(totalInserted, errors)
     }
@@ -199,25 +200,47 @@ object SeedDataManager {
     private suspend fun seedKpiConfigs(): Int {
         val col = db.collection(Constants.Collections.KPI_CONFIGS)
         val configs = listOf(
-            mapOf("configId" to "kpi_quality", "name" to "Kualitas Output Pekerjaan",
+            mapOf("configId" to "kpi_quality_eng", "name" to "Kualitas Code & Bugs",
                 "dimension" to "output_quality", "weight" to 0.30,
-                "description" to "Penilaian kualitas hasil kerja dan deliverable",
+                "description" to "Penilaian bug rate dan best practices",
+                "departmentId" to "Engineering",
                 "isActive" to true, "period" to "2025-Q2", "createdBy" to HR_UID),
-            mapOf("configId" to "kpi_attendance", "name" to "Kehadiran & Ketepatan Waktu",
+            mapOf("configId" to "kpi_attendance_eng", "name" to "Kehadiran & Ketepatan Waktu",
                 "dimension" to "attendance", "weight" to 0.20,
                 "description" to "Penilaian absensi dan kedisiplinan waktu masuk kerja",
+                "departmentId" to "Engineering",
                 "isActive" to true, "period" to "2025-Q2", "createdBy" to HR_UID),
-            mapOf("configId" to "kpi_goal", "name" to "Pencapaian Target / OKR",
+            mapOf("configId" to "kpi_goal_eng", "name" to "Pencapaian Sprint / OKR",
                 "dimension" to "goal_achievement", "weight" to 0.25,
                 "description" to "Sejauh mana target kuartal tercapai",
+                "departmentId" to "Engineering",
                 "isActive" to true, "period" to "2025-Q2", "createdBy" to HR_UID),
-            mapOf("configId" to "kpi_team", "name" to "Kontribusi Tim & Kolaborasi",
+            mapOf("configId" to "kpi_team_eng", "name" to "Kontribusi Tim & Kolaborasi",
                 "dimension" to "team_contribution", "weight" to 0.15,
                 "description" to "Penilaian kerjasama dan kontribusi dalam tim",
+                "departmentId" to "Engineering",
                 "isActive" to true, "period" to "2025-Q2", "createdBy" to HR_UID),
-            mapOf("configId" to "kpi_discipline", "name" to "Disiplin & Attitude",
+            mapOf("configId" to "kpi_discipline_eng", "name" to "Disiplin & Attitude",
                 "dimension" to "discipline", "weight" to 0.10,
                 "description" to "Penilaian kedisiplinan, sikap, dan perilaku kerja",
+                "departmentId" to "Engineering",
+                "isActive" to true, "period" to "2025-Q2", "createdBy" to HR_UID),
+                
+            // HR Department
+            mapOf("configId" to "kpi_hr_recruit", "name" to "SLA Recruitment",
+                "dimension" to "output_quality", "weight" to 0.40,
+                "description" to "Kecepatan pemenuhan kandidat",
+                "departmentId" to "Human Resources",
+                "isActive" to true, "period" to "2025-Q2", "createdBy" to HR_UID),
+            mapOf("configId" to "kpi_hr_att", "name" to "Kehadiran & Ketepatan Waktu",
+                "dimension" to "attendance", "weight" to 0.30,
+                "description" to "Penilaian absensi",
+                "departmentId" to "Human Resources",
+                "isActive" to true, "period" to "2025-Q2", "createdBy" to HR_UID),
+            mapOf("configId" to "kpi_hr_team", "name" to "Employee Satisfaction",
+                "dimension" to "team_contribution", "weight" to 0.30,
+                "description" to "Tingkat kepuasan karyawan terhadap layanan HR",
+                "departmentId" to "Human Resources",
                 "isActive" to true, "period" to "2025-Q2", "createdBy" to HR_UID)
         )
         configs.forEach { col.document(it["configId"] as String).set(it).await() }
@@ -379,5 +402,18 @@ object SeedDataManager {
             )
         ).await()
         return 1
+    }
+
+    // ── APP CONFIGS ───────────────────────────────────────────────────────
+    private suspend fun seedAppConfigs(): Int {
+        val col = db.collection(Constants.Collections.APP_CONFIGS)
+        val configs = listOf(
+            mapOf("configId" to "config_groq_api", "key" to "groq_api_key",
+                "value" to "YOUR_API_KEY_HERE",
+                "description" to "API Key untuk engine Groq AI (Llama 3)",
+                "isSecret" to true, "updatedAt" to System.currentTimeMillis())
+        )
+        configs.forEach { col.document(it["configId"] as String).set(it).await() }
+        return configs.size
     }
 }

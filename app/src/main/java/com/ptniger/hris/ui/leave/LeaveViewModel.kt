@@ -35,6 +35,12 @@ class LeaveViewModel : ViewModel() {
 
     fun loadPending(departmentId: String = "") { viewModelScope.launch { _pending.value = repo.getPending(departmentId) } }
 
+    fun loadPendingForApprover(employeeId: String, role: String) {
+        viewModelScope.launch {
+            _pending.value = repo.getPendingForApprover(employeeId, role)
+        }
+    }
+
     fun submitWithQuotaUpdate(leave: LeaveRequest, userId: String, employeeDocId: String, duration: Int, currentQuota: Int) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -42,12 +48,6 @@ class LeaveViewModel : ViewModel() {
                 onSuccess = { 
                     _message.value = "Pengajuan cuti berhasil dikirim"
                     loadByEmployeeWithFallback(leave.employeeId, userId)
-                    
-                    if (employeeDocId.isNotEmpty()) {
-                        val empRepo = com.ptniger.hris.data.repository.EmployeeRepository()
-                        val newQuota = (currentQuota - duration).coerceAtLeast(0)
-                        empRepo.updateLeaveQuota(employeeDocId, newQuota)
-                    }
                 },
                 onFailure = { _message.value = "Error: ${it.message}" }
             )

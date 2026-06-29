@@ -11,5 +11,8 @@ data class KpiScore(
     val weightedScore: Double = 0.0,
     val period: String = "",
     val scoredBy: String = "",
-    val createdAt: Long = System.currentTimeMillis()
+    val source: String = "manual", // "manual" or "auto"
+    val autoDetails: String = "",  // details for auto calculated score
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )

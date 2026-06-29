@@ -105,6 +105,7 @@ INSTRUKSI:
         leaveHistory: List<LeaveRequest>,
         peerReviews: List<PeerReview>,
         generatedBy: String,
+        apiKey: String,
         triggerType: String = "on_demand"
     ): Result<AiReview> {
         return try {
@@ -113,7 +114,7 @@ INSTRUKSI:
             )
             val prompt = buildPrompt(context, employee.name, period)
 
-            val reviewTextResult = GroqAiClient.generateReview(prompt)
+            val reviewTextResult = GroqAiClient.generateReview(prompt, apiKey)
             if (reviewTextResult.isFailure) {
                 return Result.failure(reviewTextResult.exceptionOrNull() ?: Exception("AI generation failed"))
             }

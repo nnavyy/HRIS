@@ -32,11 +32,10 @@ object GroqAiClient {
      * @param prompt Prompt yang dikirim ke AI
      * @return Result<String> berisi response text atau error
      */
-    suspend fun generateReview(prompt: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun generateReview(prompt: String, apiKey: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val apiKey = BuildConfig.GROQ_API_KEY
             if (apiKey.isBlank()) {
-                return@withContext Result.failure(Exception("Groq API key belum dikonfigurasi. Tambahkan GROQ_API_KEY di local.properties."))
+                return@withContext Result.failure(Exception("Groq API key belum dikonfigurasi di pengaturan aplikasi."))
             }
 
             val requestBody = JSONObject().apply {

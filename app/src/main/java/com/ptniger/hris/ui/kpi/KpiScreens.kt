@@ -97,9 +97,20 @@ fun KpiScoringScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = vie
     var selectedEmpId by remember { mutableStateOf("") }
     val employees by vm.employees.collectAsState()
     val configs by vm.configs.collectAsState()
+    val scores by vm.scores.collectAsState()
     val scoreInputs = remember { mutableStateMapOf<String, String>() }
     val message by vm.message.collectAsState()
     LaunchedEffect(Unit) { vm.loadEmployees(); vm.loadConfigs() }
+
+    LaunchedEffect(selectedEmpId) {
+        if (selectedEmpId.isNotEmpty()) {
+            vm.loadScores(selectedEmpId)
+        }
+    }
+
+    LaunchedEffect(scores) {
+        scores.forEach { scoreInputs[it.configId] = it.score.toString() }
+    }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -135,10 +146,43 @@ fun KpiScoringScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = vie
                     val empConfigs = configs.filter { it.department.equals(selectedEmp?.department, ignoreCase = true) }
                     
                     if (empConfigs.isEmpty()) {
-                        Text("Belum ada konfigurasi KPI untuk departemen ${selectedEmp?.department}", color = TextSecondary)
+                        Surface(shape = RoundedCornerShape(12.dp), color = OrangeSoft, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                "Belum ada konfigurasi KPI untuk departemen ${selectedEmp?.department ?: "-"}. Harap buat konfigurasi KPI terlebih dahulu di menu KPI Config.",
+                                color = Orange, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     } else {
                         empConfigs.forEach { cfg ->
-                            OutlinedTextField(scoreInputs[cfg.configId] ?: "", { scoreInputs[cfg.configId] = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), singleLine = true, label = { Text("${cfg.kpiName} (${(cfg.weight * 100).toInt()}%)") })
+                            val existingScore = scores.find { it.configId == cfg.configId }
+                            val isAuto = existingScore?.source == "auto"
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("${cfg.kpiName} (${(cfg.weight * 100).toInt()}%)", style = MaterialTheme.typography.labelMedium)
+                                    if (existingScore != null) {
+                                        Surface(shape = RoundedCornerShape(4.dp), color = if (isAuto) GreenSoft else BlueSoft) {
+                                            Text(
+                                                if (isAuto) "⚡ Auto" else "✏ Manual",
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (isAuto) Green else Blue
+                                            )
+                                        }
+                                    }
+                                }
+                                if (isAuto && existingScore?.autoDetails?.isNotEmpty() == true) {
+                                    Text(existingScore.autoDetails, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                OutlinedTextField(
+                                    value = scoreInputs[cfg.configId] ?: "",
+                                    onValueChange = { scoreInputs[cfg.configId] = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    singleLine = true,
+                                    readOnly = isAuto // If auto, user cannot manually edit it here easily
+                                )
+                            }
                         }
                     }
                     if (message != null) Text(message!!, color = Green, style = MaterialTheme.typography.bodySmall)
@@ -147,7 +191,7 @@ fun KpiScoringScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = vie
                         val empConfigs = configs.filter { it.department.equals(selectedEmp?.department, ignoreCase = true) }
                         empConfigs.forEach { cfg ->
                             val s = scoreInputs[cfg.configId]?.toIntOrNull() ?: 0
-                            vm.submitScore(KpiScore(employeeId = selectedEmpId, configId = cfg.configId, kpiName = cfg.kpiName, score = s, weight = cfg.weight, weightedScore = s * cfg.weight, period = DateUtils.currentPeriod(), scoredBy = user.userId))
+                            vm.submitScore(KpiScore(employeeId = selectedEmpId, employeeName = selectedEmp?.name ?: "", configId = cfg.configId, kpiName = cfg.kpiName, score = s, weight = cfg.weight, weightedScore = s * cfg.weight, period = DateUtils.currentPeriod(), scoredBy = user.userId))
                         }
                     }, Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Blue)) { Text("Simpan Skor") }
                 }

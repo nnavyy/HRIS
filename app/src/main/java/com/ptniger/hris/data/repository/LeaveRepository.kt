@@ -29,20 +29,36 @@ class LeaveRepository {
                 ?: employeeRepo.getById(leave.employeeId)
             val currentQuota = employee?.leaveQuota ?: 12
 
-            // 2. Validasi
+            // [LA-02] Resolve managerId and requesterRole
+            val resolvedManagerId = employee?.managerId ?: ""
+            val resolvedRole = employee?.let {
+                try {
+                    val userDoc = db.collection("users")
+                        .whereEqualTo("employeeId", it.employeeId).get().await()
+                    userDoc.documents.firstOrNull()
+                        ?.toObject(com.ptniger.hris.data.model.User::class.java)?.primaryRole ?: "employee"
+                } catch (e: Exception) { "employee" }
+            } ?: "employee"
+
+            val enrichedLeave = leave.copy(
+                managerId = resolvedManagerId,
+                requesterRole = resolvedRole
+            )
+
+            // 2. Validasi dengan tipe cuti (LP-02/LP-03)
             val validation = LeaveValidator.validate(
-                startDateStr = leave.startDate,
-                endDateStr = leave.endDate,
-                duration = leave.duration,
+                startDateStr = enrichedLeave.startDate,
+                endDateStr = enrichedLeave.endDate,
+                duration = enrichedLeave.duration,
                 leaveQuota = currentQuota,
-                policy = policy
+                policy = policy,
+                leaveType = enrichedLeave.type
             )
 
             // 3. Jika tidak valid
             if (!validation.isValid) {
                 if (validation.autoReject) {
-                    // Simpan ke Firestore sebagai rejected (tampil di riwayat)
-                    val rejectedLeave = leave.copy(
+                    val rejectedLeave = enrichedLeave.copy(
                         status = Constants.LeaveStatus.REJECTED,
                         approvedBy = "system",
                         autoRejected = true,
@@ -51,7 +67,7 @@ class LeaveRepository {
                     val ref = col.add(rejectedLeave).await()
                     if (AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)) {
                         AuditLogRepository().log(
-                            userId = leave.employeeId, userName = leave.employeeName,
+                            userId = enrichedLeave.employeeId, userName = enrichedLeave.employeeName,
                             action = "LEAVE_AUTO_REJECTED", module = "Leave",
                             targetCollection = Constants.Collections.LEAVE_REQUESTS, targetId = ref.id,
                             details = "Auto-rejected: ${validation.errorMessage}"
@@ -62,39 +78,67 @@ class LeaveRepository {
             }
 
             // 4. Valid → simpan
-            val ref = col.add(leave).await()
+            val ref = col.add(enrichedLeave).await()
 
-            // 5. Notif in-app ke manager
+            // Update kuota jika diperlukan
+            if (validation.deductsQuota && employee != null && employee.employeeId.isNotEmpty()) {
+                val newQuota = (currentQuota - enrichedLeave.duration).coerceAtLeast(0)
+                employeeRepo.updateLeaveQuota(employee.employeeId, newQuota)
+            }
+
+            // 5. Routing Notifikasi (LA-02)
             if (AutomationEngine.isRuleActive(AutomationEngine.RuleType.LEAVE)) {
-                employee?.managerId?.takeIf { it.isNotEmpty() }?.let { mgrId ->
-                    val manager = employeeRepo.getById(mgrId)
-                    manager?.userId?.takeIf { it.isNotEmpty() }?.let { uid ->
+                if (resolvedRole == Constants.Role.MANAGER || resolvedManagerId.isEmpty()) {
+                    // Manager ajukan cuti → cari HR untuk approve
+                    val hrUsers = db.collection("users")
+                        .whereEqualTo("primaryRole", Constants.Role.HR).get().await()
+                    val hrUser = hrUsers.documents.firstOrNull()?.toObject(com.ptniger.hris.data.model.User::class.java)
+                    hrUser?.userId?.let { hrId ->
                         NotificationRepository().send(
-                            userId = uid,
+                            userId = hrId,
+                            title = "Pengajuan Cuti (Manager)",
+                            message = "${enrichedLeave.employeeName} (Manager) mengajukan ${enrichedLeave.type} " +
+                                    "(${enrichedLeave.duration} hari) mulai ${enrichedLeave.startDate}. Approval diperlukan dari HR.",
+                            type = "leave_request_manager"
+                        )
+                        try {
+                            val hrEmployee = employeeRepo.getByUserId(hrId)
+                            if (hrEmployee?.email?.isNotEmpty() == true) {
+                                LeaveEmailNotifier.notifyManagerOfNewRequest(
+                                    leave = enrichedLeave, manager = hrEmployee, managerEmail = hrEmployee.email
+                                )
+                            }
+                        } catch (_: Exception) {}
+                    }
+                } else {
+                    // Karyawan biasa → notif ke manager-nya
+                    val manager = employeeRepo.getById(resolvedManagerId)
+                    manager?.userId?.takeIf { it.isNotEmpty() }?.let { mgrUserId ->
+                        NotificationRepository().send(
+                            userId = mgrUserId,
                             title = "Pengajuan Cuti Baru",
-                            message = "${leave.employeeName} mengajukan ${leave.type} " +
-                                    "(${leave.duration} hari) mulai ${leave.startDate}.",
+                            message = "${enrichedLeave.employeeName} mengajukan ${enrichedLeave.type} " +
+                                    "(${enrichedLeave.duration} hari) mulai ${enrichedLeave.startDate}.",
                             type = "leave_request"
                         )
+                        try {
+                            if (manager.email.isNotEmpty()) {
+                                LeaveEmailNotifier.notifyManagerOfNewRequest(
+                                    leave = enrichedLeave, manager = manager, managerEmail = manager.email
+                                )
+                            }
+                        } catch (_: Exception) {}
                     }
-                    // 6. Email ke manager (fire and forget)
-                    try {
-                        if (manager?.email?.isNotEmpty() == true) {
-                            LeaveEmailNotifier.notifyManagerOfNewRequest(
-                                leave = leave, manager = manager, managerEmail = manager.email
-                            )
-                        }
-                    } catch (_: Exception) {}
                 }
             }
 
             // 7. Audit log
             if (AutomationEngine.isRuleActive(AutomationEngine.RuleType.AUDIT)) {
                 AuditLogRepository().log(
-                    userId = leave.employeeId, userName = leave.employeeName,
+                    userId = enrichedLeave.employeeId, userName = enrichedLeave.employeeName,
                     action = "LEAVE_SUBMITTED", module = "Leave",
                     targetCollection = Constants.Collections.LEAVE_REQUESTS, targetId = ref.id,
-                    details = "Type: ${leave.type}, From: ${leave.startDate}, To: ${leave.endDate}, Reason: ${leave.reason}"
+                    details = "Type: ${enrichedLeave.type}, From: ${enrichedLeave.startDate}, To: ${enrichedLeave.endDate}, Reason: ${enrichedLeave.reason}"
                 )
             }
 
@@ -117,6 +161,43 @@ class LeaveRepository {
                     }.sortedByDescending { it.createdAt }
             } catch (e2: Exception) { emptyList() }
         }
+    }
+
+    suspend fun getPendingForApprover(
+        currentUserEmployeeId: String,
+        currentRole: String
+    ): List<LeaveRequest> {
+        return try {
+            when (currentRole) {
+                Constants.Role.MANAGER -> {
+                    col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+                        .whereEqualTo("managerId", currentUserEmployeeId)
+                        .get().await().documents.mapNotNull {
+                            it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
+                        }.sortedByDescending { it.createdAt }
+                }
+                Constants.Role.HR -> {
+                    val managerLeaves = col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+                        .whereEqualTo("requesterRole", Constants.Role.MANAGER)
+                        .get().await().documents.mapNotNull {
+                            it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
+                        }
+                    val noManagerLeaves = col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+                        .whereEqualTo("managerId", "")
+                        .get().await().documents.mapNotNull {
+                            it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
+                        }.filter { it.requesterRole != Constants.Role.MANAGER }
+                    (managerLeaves + noManagerLeaves).sortedByDescending { it.createdAt }
+                }
+                Constants.Role.SUPER_ADMIN -> {
+                    col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+                        .get().await().documents.mapNotNull {
+                            it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
+                        }.sortedByDescending { it.createdAt }
+                }
+                else -> emptyList()
+            }
+        } catch (e: Exception) { emptyList() }
     }
 
     suspend fun getPending(departmentId: String = ""): List<LeaveRequest> {

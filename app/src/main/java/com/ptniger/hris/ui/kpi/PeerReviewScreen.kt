@@ -1,6 +1,7 @@
 package com.ptniger.hris.ui.kpi
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,8 +52,8 @@ fun PeerReviewScreen(
         KpiDimension.TEAM_CONTRIBUTION to "Kontribusi Tim",
         KpiDimension.DISCIPLINE        to "Disiplin & Etika"
     )
-    val scores = remember { mutableStateMapOf<String, Float>().apply {
-        dimensionLabels.keys.forEach { put(it, 50f) }
+    val scores = remember { mutableStateMapOf<String, Int>().apply {
+        dimensionLabels.keys.forEach { put(it, 0) }
     }}
     var comments by remember { mutableStateOf("") }
 
@@ -138,20 +139,46 @@ fun PeerReviewScreen(
                             }
                         } else {
                             // Score sliders per dimension
-                            Text("Penilaian per Dimensi", style = MaterialTheme.typography.titleSmall)
+                            Text("Penilaian per Dimensi (Bintang 1-5)", style = MaterialTheme.typography.titleSmall)
                             dimensionLabels.forEach { (dim, label) ->
+                                val currentRating = scores[dim] ?: 0
                                 Surface(shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(14.dp)) {
-                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text(label, style = MaterialTheme.typography.bodyMedium)
-                                            Text("${scores[dim]?.toInt() ?: 50}/100", style = MaterialTheme.typography.titleSmall, color = Blue)
+                                        Text(label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.align(Alignment.CenterHorizontally))
+                                        Spacer(Modifier.height(12.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceEvenly
+                                        ) {
+                                            for (i in 1..5) {
+                                                val isSelected = i <= currentRating
+                                                Icon(
+                                                    imageVector = Icons.Default.Star,
+                                                    contentDescription = null,
+                                                    tint = if (isSelected) Color(0xFFFFC107) else Color.LightGray.copy(alpha = 0.5f),
+                                                    modifier = Modifier
+                                                        .size(48.dp)
+                                                        .clickable(
+                                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                                            indication = null
+                                                        ) { scores[dim] = i }
+                                                )
+                                            }
                                         }
-                                        Slider(
-                                            value = scores[dim] ?: 50f,
-                                            onValueChange = { scores[dim] = it },
-                                            valueRange = 0f..100f,
-                                            steps = 99,
-                                            colors = SliderDefaults.colors(thumbColor = Blue, activeTrackColor = Blue)
+                                        Spacer(Modifier.height(8.dp))
+                                        val desc = when (currentRating) {
+                                            1 -> "Sangat Kurang"
+                                            2 -> "Kurang"
+                                            3 -> "Cukup Baik"
+                                            4 -> "Baik"
+                                            5 -> "Luar Biasa"
+                                            else -> "Belum Dinilai"
+                                        }
+                                        Text(
+                                            text = desc,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = if (currentRating > 0) Blue else TextSecondary,
+                                            modifier = Modifier.align(Alignment.CenterHorizontally)
                                         )
                                     }
                                 }
@@ -183,16 +210,20 @@ fun PeerReviewScreen(
                                         isSaving = true
                                         message = null
                                         val repo = PeerReviewRepository()
-                                        // Average score across all dimensions for the single PeerReview record
-                                        val avgScore = scores.values.map { it.toInt() }.average().toInt()
+                                        val allRated = scores.values.all { it > 0 }
+                                        if (!allRated) {
+                                            message = "Harap nilai semua dimensi (bintang 1-5)!"
+                                            isSaving = false
+                                            return@launch
+                                        }
                                         // Submit one record per dimension
                                         var success = true
-                                        scores.forEach { (dim, score) ->
+                                        scores.forEach { (dim, starScore) ->
                                             val review = PeerReview(
                                                 targetEmployeeId = target.userId,
                                                 reviewerEmployeeId = user.uid,
                                                 period = currentPeriod,
-                                                score = score.toInt(),
+                                                score = starScore * 20, // Konversi 5 Bintang -> Skala 100
                                                 comments = if (dim == scores.keys.last()) comments else "",
                                                 dimension = dim
                                             )
@@ -225,7 +256,7 @@ fun PeerReviewScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(120.dp))
         }
     }
 }

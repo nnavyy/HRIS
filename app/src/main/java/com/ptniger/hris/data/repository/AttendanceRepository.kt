@@ -165,6 +165,18 @@ class AttendanceRepository {
                         targetUserId = authUid, details = "status=${attendanceStatus}, validation=${validationStatus}, distance=${distance}m, schedule=${schedule.scheduleId}"
                     )
                 }
+
+                // Trigger KPI Auto-Scoring for Attendance
+                if (resolvedEmployee != null) {
+                    try {
+                        com.ptniger.hris.utils.KpiAutoScorer.updateAttendanceKpi(
+                            employeeId = attendance.employeeId,
+                            employeeName = resolvedEmployee.name,
+                            departmentId = resolvedEmployee.department
+                        )
+                    } catch (e: Exception) {}
+                }
+
                 return Result.success(ref.id)
             } else {
                 // For Check-Out: Find existing today's record and UPDATE
@@ -204,6 +216,18 @@ class AttendanceRepository {
                             details = "checkOut=$checkOutNow, overtime=$overtimeHours, earlyLeave=$isEarlyLeave, schedule=${schedule.scheduleId}"
                         )
                     }
+
+                    // Trigger KPI Auto-Scoring for Attendance
+                    if (resolvedEmployee != null) {
+                        try {
+                            com.ptniger.hris.utils.KpiAutoScorer.updateAttendanceKpi(
+                                employeeId = attendance.employeeId,
+                                employeeName = resolvedEmployee.name,
+                                departmentId = resolvedEmployee.department
+                            )
+                        } catch (e: Exception) {}
+                    }
+
                     return Result.success(todayRecord.attendanceId)
                 } else {
                     return Result.failure(Exception("Tidak bisa check-out: Anda belum check-in hari ini."))
@@ -248,6 +272,15 @@ class AttendanceRepository {
                     it.toObject(Attendance::class.java)?.copy(attendanceId = it.id)
                 }
         } catch (e: Exception) { null }
+    }
+
+    suspend fun getHistory(employeeId: String): List<Attendance> {
+        return try {
+            col.whereEqualTo("employeeId", employeeId)
+                .get().await().documents.mapNotNull {
+                    it.toObject(Attendance::class.java)?.copy(attendanceId = it.id)
+                }.sortedByDescending { it.date }
+        } catch (e: Exception) { emptyList() }
     }
 
     suspend fun getMonthlyAttendance(employeeId: String, month: Int, year: Int): List<Attendance> {

@@ -10,7 +10,8 @@ object LeaveValidator {
     data class ValidationResult(
         val isValid: Boolean,
         val autoReject: Boolean = false,
-        val errorMessage: String = ""
+        val errorMessage: String = "",
+        val deductsQuota: Boolean = true
     )
 
     private val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -20,7 +21,8 @@ object LeaveValidator {
         endDateStr: String,
         duration: Int,
         leaveQuota: Int,
-        policy: LeavePolicy
+        policy: LeavePolicy,
+        leaveType: String = ""
     ): ValidationResult {
 
         val today = Calendar.getInstance().apply {
@@ -35,22 +37,40 @@ object LeaveValidator {
             return ValidationResult(false, false, "Format tanggal selesai tidak valid.")
         }
 
+        val isEmergency = policy.emergencyLeaveTypes.contains(leaveType)
+        val allowPast = policy.allowPastDateSubmission || policy.allowPastDateForTypes.contains(leaveType)
+        val deductsQuota = !isEmergency
+
         // 1. Tanggal mulai tidak di masa lalu
-        if (!policy.allowPastDateSubmission && startDate != null && startDate.before(today)) {
+        if (!allowPast && startDate != null && startDate.before(today)) {
             return ValidationResult(
                 isValid = false, autoReject = policy.autoRejectOnExpiry,
-                errorMessage = "Tanggal mulai cuti sudah lewat. Pengajuan tidak dapat diproses untuk tanggal yang telah berlalu."
+                errorMessage = "Tanggal mulai cuti sudah lewat. Pengajuan tidak dapat diproses untuk tanggal yang telah berlalu.",
+                deductsQuota = false
             )
+        }
+        
+        // 1b. Jika allowPast karena tipe khusus, cek batas mundurnya
+        if (startDate != null && startDate.before(today) && policy.allowPastDateForTypes.contains(leaveType)) {
+            val pastDays = TimeUnit.MILLISECONDS.toDays(today.time - startDate.time)
+            if (pastDays > policy.maxPastDays) {
+                return ValidationResult(
+                    isValid = false, autoReject = policy.autoRejectOnExpiry,
+                    errorMessage = "Cuti $leaveType hanya dapat diajukan maksimal ${policy.maxPastDays} hari setelah kejadian.",
+                    deductsQuota = false
+                )
+            }
         }
 
         // 2. Minimal H-N sebelum tanggal mulai
-        if (policy.minAdvanceDays > 0 && startDate != null) {
+        if (!isEmergency && policy.minAdvanceDays > 0 && startDate != null) {
             val diffDays = TimeUnit.MILLISECONDS.toDays(startDate.time - today.time)
             if (diffDays < policy.minAdvanceDays) {
                 return ValidationResult(
                     isValid = false, autoReject = policy.autoRejectOnExpiry,
                     errorMessage = "Pengajuan harus dilakukan minimal ${policy.minAdvanceDays} hari sebelum tanggal mulai " +
-                            "(sisa ${diffDays} hari)."
+                            "(sisa ${diffDays} hari).",
+                    deductsQuota = false
                 )
             }
         }
@@ -59,25 +79,30 @@ object LeaveValidator {
         if (duration > policy.maxDaysPerRequest) {
             return ValidationResult(
                 isValid = false, autoReject = false,
-                errorMessage = "Durasi ($duration hari) melebihi batas maksimal per pengajuan (${policy.maxDaysPerRequest} hari)."
+                errorMessage = "Durasi ($duration hari) melebihi batas maksimal per pengajuan (${policy.maxDaysPerRequest} hari).",
+                deductsQuota = false
             )
         }
 
-        // 4. Kuota sisa
-        if (leaveQuota <= 0) {
-            return ValidationResult(
-                isValid = false, autoReject = true,
-                errorMessage = "Kuota cuti tahunan sudah habis. Pengajuan otomatis ditolak."
-            )
-        }
-        if (duration > leaveQuota) {
-            return ValidationResult(
-                isValid = false, autoReject = false,
-                errorMessage = "Durasi ($duration hari) melebihi sisa kuota ($leaveQuota hari)."
-            )
+        // 4. Kuota sisa (hanya jika deductsQuota)
+        if (deductsQuota) {
+            if (leaveQuota <= 0) {
+                return ValidationResult(
+                    isValid = false, autoReject = true,
+                    errorMessage = "Kuota cuti tahunan sudah habis. Pengajuan otomatis ditolak.",
+                    deductsQuota = false
+                )
+            }
+            if (duration > leaveQuota) {
+                return ValidationResult(
+                    isValid = false, autoReject = false,
+                    errorMessage = "Durasi ($duration hari) melebihi sisa kuota ($leaveQuota hari).",
+                    deductsQuota = false
+                )
+            }
         }
 
-        return ValidationResult(isValid = true)
+        return ValidationResult(isValid = true, deductsQuota = deductsQuota)
     }
 
     /** Cek apakah pengajuan PENDING sudah kadaluarsa (tanggal mulai sudah lewat) */
