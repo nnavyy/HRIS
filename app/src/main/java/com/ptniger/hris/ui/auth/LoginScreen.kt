@@ -51,13 +51,6 @@ fun LoginScreen(
     val emailHistory = remember { mutableStateOf(com.ptniger.hris.utils.LoginHistoryManager.getHistory(context)) }
     var expandedHistory by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.loggedInUser) {
-        uiState.loggedInUser?.let { 
-            com.ptniger.hris.utils.LoginHistoryManager.saveHistory(context, email)
-            onLoginSuccess(it) 
-        }
-    }
-
     if (showForgotPassword) {
         ForgotPasswordDialog(onDismiss = { showForgotPassword = false })
     }
@@ -250,7 +243,10 @@ fun LoginScreen(
                 Spacer(Modifier.height(16.dp))
 
                 Button(
-                    onClick = { viewModel.login(email.trim(), password, selectedRole) },
+                    onClick = { 
+                        com.ptniger.hris.utils.LoginHistoryManager.saveHistory(context, email.trim())
+                        viewModel.login(email.trim(), password, selectedRole) 
+                    },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Blue),

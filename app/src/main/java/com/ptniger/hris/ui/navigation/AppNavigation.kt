@@ -73,14 +73,6 @@ fun AppNavigation(
     val start = if (hasAgreed(context)) Screen.Login.route else "agreement"
     var currentRoute by rememberSaveable { mutableStateOf("dashboard") }
 
-    LaunchedEffect(currentUser) {
-        if (currentUser != null && navController.currentDestination?.route == Screen.Login.route) {
-            navController.navigate("main") {
-                popUpTo(Screen.Login.route) { inclusive = true }
-            }
-        }
-    }
-
     NavHost(navController = navController, startDestination = start) {
         // Agreement screen — shown only if user has not yet accepted
         composable("agreement") {
@@ -96,6 +88,7 @@ fun AppNavigation(
         composable(Screen.Login.route) {
             LaunchedEffect(currentUser) {
                 if (currentUser != null) {
+                    currentRoute = "dashboard"
                     navController.navigate("main") {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
@@ -103,10 +96,7 @@ fun AppNavigation(
             }
             LoginScreen(
                 onLoginSuccess = { user ->
-                    currentRoute = "dashboard"
-                    navController.navigate("main") {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
+                    // Navigation handled by LaunchedEffect above
                 }
             )
         }
