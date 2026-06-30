@@ -32,7 +32,6 @@ object RoleManager {
             }
             Constants.Role.FINANCE -> {
                 items.add(NavItem("payroll", "Payroll", "payments"))
-                items.add(NavItem("payroll_approval", "Approval", "check_circle"))
                 items.add(NavItem("report", "Laporan", "chart"))
             }
             Constants.Role.MANAGER -> {

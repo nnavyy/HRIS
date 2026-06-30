@@ -52,15 +52,34 @@ import com.ptniger.hris.data.model.Employee
 import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.Constants
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.CircularProgressIndicator
+import com.ptniger.hris.ui.auth.LoginViewModel
+import androidx.compose.runtime.collectAsState
+
 @Composable
 fun AppNavigation(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Login.route
 ) {
     val context = LocalContext.current
+    val loginVm: LoginViewModel = viewModel()
+    val uiState by loginVm.uiState.collectAsState()
+    
+    val currentUser = uiState.loggedInUser
+    val isRestoring = uiState.isRestoringSession
+
     val start = if (hasAgreed(context)) Screen.Login.route else "agreement"
-    var currentUser by remember { mutableStateOf<User?>(null) }
-    var currentRoute by remember { mutableStateOf("dashboard") }
+    var currentRoute by rememberSaveable { mutableStateOf("dashboard") }
+
+    LaunchedEffect(currentUser) {
+        if (currentUser != null && navController.currentDestination?.route == Screen.Login.route) {
+            navController.navigate("main") {
+                popUpTo(Screen.Login.route) { inclusive = true }
+            }
+        }
+    }
 
     NavHost(navController = navController, startDestination = start) {
         // Agreement screen — shown only if user has not yet accepted
@@ -75,9 +94,15 @@ fun AppNavigation(
         }
 
         composable(Screen.Login.route) {
+            LaunchedEffect(currentUser) {
+                if (currentUser != null) {
+                    navController.navigate("main") {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                }
+            }
             LoginScreen(
                 onLoginSuccess = { user ->
-                    currentUser = user
                     currentRoute = "dashboard"
                     navController.navigate("main") {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -87,24 +112,54 @@ fun AppNavigation(
         }
 
         composable("main") {
-            val user = currentUser ?: return@composable
-            var navigationEmployee by remember { mutableStateOf<Employee?>(null) }
-            MainScaffold(
-                user = user,
-                currentRoute = currentRoute,
-                navigationEmployee = navigationEmployee,
-                onNavigate = { route -> currentRoute = route },
-                onSetNavigationEmployee = { navigationEmployee = it },
-                onLogout = {
-                    currentUser = null
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+            val user = currentUser
+            
+            when {
+                isRestoring -> {
+                    Box(
+                        Modifier.fillMaxSize().background(Background),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = Blue)
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "Memulihkan sesi...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
                     }
-                },
-                onNavigateToDetail = { route ->
-                    currentRoute = route
+                    return@composable
                 }
-            )
+                user == null -> {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                    return@composable
+                }
+                else -> {
+                    var navigationEmployee by remember { mutableStateOf<Employee?>(null) }
+                    MainScaffold(
+                        user = user,
+                        currentRoute = currentRoute,
+                        navigationEmployee = navigationEmployee,
+                        onNavigate = { route -> currentRoute = route },
+                        onSetNavigationEmployee = { navigationEmployee = it },
+                        onLogout = {
+                            loginVm.clearLoginState()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        onNavigateToDetail = { route ->
+                            currentRoute = route
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -119,14 +174,19 @@ fun MainScaffold(
     onLogout: () -> Unit,
     onNavigateToDetail: (String) -> Unit
 ) {
+    var faceRegistrationEmployeeId by remember { mutableStateOf("") }
+    var faceRegistrationEmployeeName by remember { mutableStateOf("") }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.weight(1f).windowInsetsPadding(WindowInsets.navigationBars)) {
                 when (currentRoute) {
                     "dashboard" -> DashboardRouter(user = user, onNavigate = onNavigateToDetail)
-                    "employees" -> EmployeeListScreen(user = user, onNavigateToForm = { id ->
-                        onNavigateToDetail("employee_form_$id")
-                    })
+                    "employees" -> EmployeeListScreen(
+                        user = user, 
+                        onNavigateToForm = { id -> onNavigateToDetail("employee_form_$id") },
+                        onNavigateToDetail = { id -> onNavigateToDetail("employee_detail_$id") }
+                    )
                     "leave_approval" -> LeaveApprovalScreen(user = user, onBack = { onNavigate("dashboard") })
                     "leave_request" -> LeaveRequestScreen(user = user)
                     "attendance" -> AttendanceScreen(user = user)
@@ -175,6 +235,23 @@ fun MainScaffold(
                                 user = user,
                                 onBack = { onNavigate("employees") }
                             )
+                        } else if (currentRoute.startsWith("employee_detail_")) {
+                            val id = currentRoute.removePrefix("employee_detail_")
+                            com.ptniger.hris.ui.employee.EmployeeDetailScreen(
+                                employeeId = id,
+                                user = user,
+                                onBack = { onNavigate("employees") },
+                                onNavigateToEdit = { editId -> onNavigateToDetail("employee_form_$editId") },
+                                onNavigateToFaceRegistration = { empId, empName -> 
+                                    faceRegistrationEmployeeId = empId
+                                    faceRegistrationEmployeeName = empName
+                                    onNavigateToDetail("face_registration")
+                                }
+                            )
+                        } else if (currentRoute == "face_registration") {
+                            // Will be implemented in Phase 3
+                        } else if (currentRoute == "face_attendance") {
+                            // Will be implemented in Phase 3
                         } else {
                             DashboardRouter(user = user, onNavigate = onNavigateToDetail)
                         }

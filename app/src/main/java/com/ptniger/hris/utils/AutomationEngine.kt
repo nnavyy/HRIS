@@ -53,6 +53,9 @@ object AutomationEngine {
         if (cachedRules.isEmpty() || System.currentTimeMillis() - lastFetched > cacheDurationMs) {
             try { refreshRules() } catch (_: Exception) { /* use cached */ }
         }
+        
+        if (cachedRules.isEmpty()) return true
+        
         // If no rule found for this type, default to active
         val rule = cachedRules.find { it.type == ruleType }
         return rule?.isActive ?: true

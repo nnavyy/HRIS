@@ -13,6 +13,7 @@ object DateUtils {
     private val displayDateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
     private val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale("id", "ID"))
     private val periodFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
+    private val dateTimeFormat = SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID"))
 
     fun today(): String = dateFormat.format(Date())
     fun nowTime(): String = timeFormat.format(Date())
@@ -25,6 +26,10 @@ object DateUtils {
             val date = dateFormat.parse(dateStr)
             date?.let { displayDateFormat.format(it) } ?: dateStr
         } catch (e: Exception) { dateStr }
+    }
+
+    fun formatTimestamp(timestamp: Long): String {
+        return if (timestamp > 0) dateTimeFormat.format(Date(timestamp)) else "-"
     }
 
     fun formatMonthYear(month: Int, year: Int): String {

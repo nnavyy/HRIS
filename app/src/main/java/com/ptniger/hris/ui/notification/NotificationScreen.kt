@@ -30,9 +30,12 @@ fun NotificationScreen(user: User, onBack: () -> Unit = {}) {
     LaunchedEffect(Unit) { notifications = repo.getByUser(user.userId) }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-            Text("Notifikasi", style = MaterialTheme.typography.headlineMedium)
+            Text("Notifikasi", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            IconButton(onClick = { scope.launch { notifications = repo.getByUser(user.userId) } }) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            }
         }
         LazyColumn(contentPadding = PaddingValues(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(notifications) { notif ->

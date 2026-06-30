@@ -19,7 +19,12 @@ import com.ptniger.hris.data.model.User
 import com.ptniger.hris.ui.theme.*
 
 @Composable
-fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: EmployeeViewModel = viewModel()) {
+fun EmployeeListScreen(
+    user: User, 
+    onNavigateToForm: (String) -> Unit, 
+    onNavigateToDetail: (String) -> Unit = {},
+    vm: EmployeeViewModel = viewModel()
+) {
     var search by remember { mutableStateOf("") }
     var showAddMemberDialog by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -74,7 +79,13 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
         LazyColumn(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filtered) { emp ->
                 Surface(shape = RoundedCornerShape(22.dp), color = Surface, shadowElevation = 1.dp,
-                    modifier = Modifier.fillMaxWidth().clickable { if (!isManager) onNavigateToForm(emp.employeeId) }) {
+                    modifier = Modifier.fillMaxWidth().clickable { 
+                        if (isManager) {
+                            onNavigateToDetail(emp.employeeId)
+                        } else {
+                            onNavigateToForm(emp.employeeId)
+                        }
+                    }) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(44.dp).clip(RoundedCornerShape(16.dp)).background(BlueSoft), contentAlignment = Alignment.Center) {
                             Text(emp.name.take(2).uppercase(), style = MaterialTheme.typography.labelMedium, color = Blue)
@@ -92,6 +103,13 @@ fun EmployeeListScreen(user: User, onNavigateToForm: (String) -> Unit, vm: Emplo
                                 color = if (emp.employmentStatus == "active") Green else Orange
                             )
                         }
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = TextMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }

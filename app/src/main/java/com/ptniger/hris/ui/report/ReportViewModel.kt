@@ -35,34 +35,19 @@ class ReportViewModel : ViewModel() {
     // Handles Android 10+ (MediaStore) and older (FileWriter)
     // ──────────────────────────────────────────
     private fun writeCsvToDownloads(context: Context, fileName: String, content: String): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Android 10+ → use MediaStore
-            val resolver = context.contentResolver
-            val values = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                put(MediaStore.Downloads.MIME_TYPE, "text/csv")
-                put(MediaStore.Downloads.IS_PENDING, 1)
-            }
-            val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            val itemUri = resolver.insert(collection, values)
-                ?: throw Exception("Tidak bisa membuat file di Downloads")
-
-            resolver.openOutputStream(itemUri)?.use { stream: OutputStream ->
-                stream.write(content.toByteArray())
-            }
-
-            values.clear()
-            values.put(MediaStore.Downloads.IS_PENDING, 0)
-            resolver.update(itemUri, values, null, null)
-
-            fileName
-        } else {
-            // Android 9 and below → use FileWriter
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val file = File(downloadsDir, fileName)
-            FileWriter(file).use { writer -> writer.write(content) }
-            file.name
+        val file = File(context.cacheDir, fileName)
+        file.writeText(content)
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(android.content.Intent.EXTRA_SUBJECT, fileName)
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        val chooser = android.content.Intent.createChooser(intent, "Bagikan Laporan")
+        chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+        return file.name
     }
 
     fun downloadAttendanceReport(context: Context, month: Int, year: Int) {
@@ -77,7 +62,7 @@ class ReportViewModel : ViewModel() {
                 }
                 val fileName = "Laporan_Absensi_${System.currentTimeMillis()}.csv"
                 writeCsvToDownloads(context, fileName, sb.toString())
-                _message.value = "✓ Berhasil disimpan ke Downloads: $fileName"
+                _message.value = "✓ Laporan siap dibagikan: $fileName"
             } catch (e: Exception) {
                 _message.value = "Gagal: ${e.message}"
             } finally {
@@ -98,7 +83,7 @@ class ReportViewModel : ViewModel() {
                 }
                 val fileName = "Laporan_Payroll_${month}_${year}.csv"
                 writeCsvToDownloads(context, fileName, sb.toString())
-                _message.value = "✓ Berhasil disimpan ke Downloads: $fileName"
+                _message.value = "✓ Laporan siap dibagikan: $fileName"
             } catch (e: Exception) {
                 _message.value = "Gagal: ${e.message}"
             } finally {

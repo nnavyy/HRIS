@@ -58,11 +58,13 @@ class CreateUserViewModel : ViewModel() {
             _isLoading.value = true
             _message.value = null
 
+            val finalOfficeId = if (officeId.isEmpty()) "office_main" else officeId
+
             val user = User(
                 name = name,
                 email = email,
                 role = role,
-                officeId = officeId,
+                officeId = finalOfficeId,
                 departmentId = department
             )
 
@@ -74,7 +76,7 @@ class CreateUserViewModel : ViewModel() {
                 val employee = Employee(
                     name = name,
                     email = email,
-                    officeId = officeId,
+                    officeId = finalOfficeId,
                     department = department,
                     position = position,
                     baseSalary = baseSalary,
@@ -83,6 +85,12 @@ class CreateUserViewModel : ViewModel() {
                 
                 val empResult = employeeRepo.add(employee)
                 empResult.onSuccess { empId ->
+                    // Update user's employeeId
+                    com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection(Constants.Collections.USERS)
+                        .document(newUserId)
+                        .update("employeeId", empId)
+
                     // Audit Log
                     auditRepo.log(
                         userId = superAdminId,

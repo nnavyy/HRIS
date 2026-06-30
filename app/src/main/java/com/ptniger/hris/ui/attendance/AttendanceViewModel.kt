@@ -29,6 +29,7 @@ class AttendanceViewModel : ViewModel() {
                 val today = repo.getTodayAttendance(resolvedId)
                 val monthly = repo.getMonthlyAttendance(resolvedId, DateUtils.currentMonth(), DateUtils.currentYear())
                 val calendar = buildCalendar(monthly)
+                val employee = com.ptniger.hris.data.repository.EmployeeRepository().getById(resolvedId)
                 _state.value = AttendanceState(
                     hasCheckedIn = today != null,
                     checkInTime = today?.checkIn ?: "",
@@ -37,7 +38,8 @@ class AttendanceViewModel : ViewModel() {
                     attendanceId = today?.attendanceId ?: "",
                     monthlyCalendar = calendar,
                     isLoading = false,
-                    resolvedEmployeeId = resolvedId
+                    resolvedEmployeeId = resolvedId,
+                    isFaceRegistered = employee?.isFaceRegistered == true
                 )
             } catch (e: Exception) {
                 _state.value = AttendanceState(
@@ -82,7 +84,10 @@ class AttendanceViewModel : ViewModel() {
         clockType: String,
         context: android.content.Context,
         isMockDetected: Boolean = false,
-        userEmail: String = ""
+        userEmail: String = "",
+        checkInMode: String = "selfie",
+        faceRecognitionSimilarity: Float = 0f,
+        livenessVerified: Boolean = false
     ) {
         if (employeeId.isEmpty()) {
             _state.value = _state.value.copy(message = "Employee ID belum terhubung")
@@ -158,7 +163,10 @@ class AttendanceViewModel : ViewModel() {
                     isMockLocation = isMockDetected,
                     serverTimestamp = serverTimeMs,
                     deviceTimestamp = deviceTime,
-                    isTimeTampered = isTimeTampered
+                    isTimeTampered = isTimeTampered,
+                    checkInMode = checkInMode,
+                    faceRecognitionSimilarity = faceRecognitionSimilarity,
+                    livenessVerified = livenessVerified
                 )
 
                 repo.submitAttendance(attendance, imageUri, office, context).fold(
@@ -238,5 +246,6 @@ data class AttendanceState(
     val message: String? = null,
     val monthlyCalendar: List<Pair<Int, String>> = emptyList(),
     val todayList: List<Attendance> = emptyList(),
-    val resolvedEmployeeId: String = ""
+    val resolvedEmployeeId: String = "",
+    val isFaceRegistered: Boolean = false
 )

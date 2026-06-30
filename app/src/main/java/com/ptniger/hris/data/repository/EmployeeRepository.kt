@@ -109,4 +109,35 @@ class EmployeeRepository {
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
+
+    suspend fun saveFaceEmbedding(
+        employeeId: String,
+        embedding: FloatArray,
+        registeredBy: String
+    ): Result<Unit> {
+        return try {
+            col.document(employeeId).update(
+                mapOf(
+                    "faceEmbedding"     to embedding.toList(),
+                    "isFaceRegistered"  to true,
+                    "faceRegisteredAt"  to System.currentTimeMillis(),
+                    "faceRegisteredBy"  to registeredBy
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun clearFaceEmbedding(employeeId: String): Result<Unit> {
+        return try {
+            col.document(employeeId).update(
+                mapOf(
+                    "faceEmbedding"    to emptyList<Float>(),
+                    "isFaceRegistered" to false,
+                    "faceRegisteredAt" to 0L
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) { Result.failure(e) }
+    }
 }

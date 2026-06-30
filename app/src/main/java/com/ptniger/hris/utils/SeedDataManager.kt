@@ -30,6 +30,8 @@ object SeedDataManager {
         try { totalInserted += seedPeerReviews() }     catch (e: Exception) { errors.add("peer_reviews: ${e.message}") }
         try { totalInserted += seedPayrolls() }        catch (e: Exception) { errors.add("payrolls: ${e.message}") }
         try { totalInserted += seedAppConfigs() }      catch (e: Exception) { errors.add("app_configs: ${e.message}") }
+        try { totalInserted += seedAutomationRules() } catch (e: Exception) { errors.add("automation_rules: ${e.message}") }
+        try { totalInserted += seedNotifications() }   catch (e: Exception) { errors.add("notifications: ${e.message}") }
 
         return SeedResult(totalInserted, errors)
     }
@@ -43,7 +45,7 @@ object SeedDataManager {
     private const val EMP_004 = "emp_dewi_lestari"
     private const val EMP_005 = "emp_reza_pratama"
     private const val MGR_UID = "manager_uid_placeholder"
-    private const val HR_UID  = "hr_uid_placeholder"
+    private const val HR_UID = "hr_uid_placeholder"
 
     // ── OFFICE LOCATIONS ─────────────────────────────────────────────────
     private suspend fun seedOfficeLocations(): Int {
@@ -63,19 +65,19 @@ object SeedDataManager {
         val col = db.collection(Constants.Collections.EMPLOYEES)
         val employees = listOf(
             mapOf("employeeId" to EMP_001, "nik" to "3374010101900001", "name" to "Budi Santoso",
-                "email" to "budi.santoso@ptniger.com", "phone" to "081234567001",
+                "email" to "karyawan@ptniger.com", "phone" to "081234567001",
                 "position" to "Software Engineer", "department" to "Engineering",
                 "branch" to "Semarang", "officeId" to "office_main", "managerId" to EMP_003,
                 "joinDate" to "2022-03-01", "employmentStatus" to "active",
                 "baseSalary" to 7500000.0, "leaveQuota" to 9, "userId" to "", "workScheduleId" to "default"),
             mapOf("employeeId" to EMP_002, "nik" to "3374010201910002", "name" to "Siti Rahayu",
-                "email" to "siti.rahayu@ptniger.com", "phone" to "081234567002",
+                "email" to "hr@ptniger.com", "phone" to "081234567002",
                 "position" to "HR Specialist", "department" to "Human Resources",
                 "branch" to "Semarang", "officeId" to "office_main", "managerId" to EMP_003,
                 "joinDate" to "2021-07-15", "employmentStatus" to "active",
                 "baseSalary" to 6500000.0, "leaveQuota" to 12, "userId" to HR_UID, "workScheduleId" to "default"),
             mapOf("employeeId" to EMP_003, "nik" to "3374010301880003", "name" to "Ahmad Fauzi",
-                "email" to "ahmad.fauzi@ptniger.com", "phone" to "081234567003",
+                "email" to "manager@ptniger.com", "phone" to "081234567003",
                 "position" to "Engineering Manager", "department" to "Engineering",
                 "branch" to "Semarang", "officeId" to "office_main", "managerId" to "",
                 "joinDate" to "2020-01-10", "employmentStatus" to "active",
@@ -87,7 +89,7 @@ object SeedDataManager {
                 "joinDate" to "2023-02-01", "employmentStatus" to "active",
                 "baseSalary" to 6000000.0, "leaveQuota" to 10, "userId" to "", "workScheduleId" to "default"),
             mapOf("employeeId" to EMP_005, "nik" to "3374010501950005", "name" to "Reza Pratama",
-                "email" to "reza.pratama@ptniger.com", "phone" to "081234567005",
+                "email" to "finance@ptniger.com", "phone" to "081234567005",
                 "position" to "Finance Staff", "department" to "Finance",
                 "branch" to "Ungaran", "officeId" to "office_ungaran", "managerId" to EMP_003,
                 "joinDate" to "2022-09-01", "employmentStatus" to "active",
@@ -171,28 +173,88 @@ object SeedDataManager {
     private suspend fun seedLeaveRequests(): Int {
         val col = db.collection(Constants.Collections.LEAVE_REQUESTS)
         val leaves = listOf(
-            mapOf("employeeId" to EMP_001, "employeeName" to "Budi Santoso",
+            // Budi (EMP_001) cuti tahunan — manager = Ahmad (EMP_003)
+            mapOf(
+                "leaveId" to "leave_001", "employeeId" to EMP_001,
+                "employeeName" to "Budi Santoso",
+                "managerId" to EMP_003,
+                "requesterRole" to "employee",
+                "departmentId" to "Engineering",
                 "type" to "annual", "startDate" to "2025-04-14", "endDate" to "2025-04-16",
                 "duration" to 3, "reason" to "Liburan keluarga ke Yogyakarta",
-                "status" to "approved", "approvedBy" to EMP_003, "createdAt" to System.currentTimeMillis()),
-            mapOf("employeeId" to EMP_004, "employeeName" to "Dewi Lestari",
+                "status" to "approved", "approvedBy" to EMP_003,
+                "autoRejected" to false, "rejectionReason" to "",
+                "createdAt" to System.currentTimeMillis()
+            ),
+            // Dewi (EMP_004) sakit — manager = Ahmad (EMP_003)
+            mapOf(
+                "leaveId" to "leave_002", "employeeId" to EMP_004,
+                "employeeName" to "Dewi Lestari",
+                "managerId" to EMP_003,
+                "requesterRole" to "employee",
+                "departmentId" to "Engineering",
                 "type" to "sick", "startDate" to "2025-05-05", "endDate" to "2025-05-06",
                 "duration" to 2, "reason" to "Demam dan flu, disertai surat dokter",
-                "status" to "approved", "approvedBy" to EMP_003, "createdAt" to System.currentTimeMillis()),
-            mapOf("employeeId" to EMP_005, "employeeName" to "Reza Pratama",
-                "type" to "permission", "startDate" to "2025-06-20", "endDate" to "2025-06-20",
+                "status" to "approved", "approvedBy" to EMP_003,
+                "autoRejected" to false, "rejectionReason" to "",
+                "createdAt" to System.currentTimeMillis()
+            ),
+            // Reza (EMP_005) izin PENDING — manager = Ahmad (EMP_003)
+            mapOf(
+                "leaveId" to "leave_003", "employeeId" to EMP_005,
+                "employeeName" to "Reza Pratama",
+                "managerId" to EMP_003,
+                "requesterRole" to "employee",
+                "departmentId" to "Finance",
+                "type" to "permission", "startDate" to "2026-07-15", "endDate" to "2026-07-15",
                 "duration" to 1, "reason" to "Urusan keluarga mendadak",
-                "status" to "pending", "approvedBy" to "", "createdAt" to System.currentTimeMillis()),
-            mapOf("employeeId" to EMP_002, "employeeName" to "Siti Rahayu",
+                "status" to "pending", "approvedBy" to "",
+                "autoRejected" to false, "rejectionReason" to "",
+                "createdAt" to System.currentTimeMillis()
+            ),
+            // Siti (EMP_002) cuti — manager = Ahmad (EMP_003)
+            mapOf(
+                "leaveId" to "leave_004", "employeeId" to EMP_002,
+                "employeeName" to "Siti Rahayu",
+                "managerId" to EMP_003,
+                "requesterRole" to "employee",
+                "departmentId" to "Human Resources",
                 "type" to "annual", "startDate" to "2025-06-09", "endDate" to "2025-06-10",
                 "duration" to 2, "reason" to "Pernikahan saudara",
-                "status" to "approved", "approvedBy" to EMP_003, "createdAt" to System.currentTimeMillis()),
-            mapOf("employeeId" to EMP_003, "employeeName" to "Ahmad Fauzi",
-                "type" to "annual", "startDate" to "2025-05-20", "endDate" to "2025-05-23",
-                "duration" to 4, "reason" to "Liburan ke Bali",
-                "status" to "rejected", "approvedBy" to "", "createdAt" to System.currentTimeMillis())
+                "status" to "approved", "approvedBy" to EMP_003,
+                "autoRejected" to false, "rejectionReason" to "",
+                "createdAt" to System.currentTimeMillis()
+            ),
+            // Budi (EMP_001) cuti PENDING
+            mapOf(
+                "leaveId" to "leave_005", "employeeId" to EMP_001,
+                "employeeName" to "Budi Santoso",
+                "managerId" to EMP_003,
+                "requesterRole" to "employee",
+                "departmentId" to "Engineering",
+                "type" to "annual", "startDate" to "2026-07-20", "endDate" to "2026-07-22",
+                "duration" to 3, "reason" to "Liburan akhir tahun",
+                "status" to "pending", "approvedBy" to "",
+                "autoRejected" to false, "rejectionReason" to "",
+                "createdAt" to System.currentTimeMillis()
+            ),
+            // Dewi (EMP_004) sakit PENDING
+            mapOf(
+                "leaveId" to "leave_006", "employeeId" to EMP_004,
+                "employeeName" to "Dewi Lestari",
+                "managerId" to EMP_003,
+                "requesterRole" to "employee",
+                "departmentId" to "Engineering",
+                "type" to "sick", "startDate" to "2026-06-30", "endDate" to "2026-06-30",
+                "duration" to 1, "reason" to "Sakit kepala, tidak bisa hadir",
+                "status" to "pending", "approvedBy" to "",
+                "autoRejected" to false, "rejectionReason" to "",
+                "createdAt" to System.currentTimeMillis()
+            )
         )
-        leaves.forEach { col.add(it).await() }
+        val batch = db.batch()
+        leaves.forEach { batch.set(col.document(it["leaveId"] as String), it) }
+        batch.commit().await()
         return leaves.size
     }
 
@@ -357,8 +419,7 @@ object SeedDataManager {
                 "bpjsJkk" to e.base * 0.0024, "bpjsJkm" to e.base * 0.003,
                 "pph21" to 0.0, "ptkpStatus" to e.ptkp,
                 "deductions" to deduct, "netSalary" to net,
-                "status" to "approved", "managerId" to EMP_003,
-                "approvedByManagerId" to MGR_UID, "approvedAt" to System.currentTimeMillis(),
+                "status" to "pending_approval", "managerId" to EMP_003,
                 "generatedAt" to System.currentTimeMillis()
             )
         }
@@ -415,5 +476,125 @@ object SeedDataManager {
         )
         configs.forEach { col.document(it["configId"] as String).set(it).await() }
         return configs.size
+    }
+
+    private suspend fun seedAutomationRules(): Int {
+        val col = db.collection("automation_rules")
+        val rules = listOf(
+            mapOf("ruleId" to "leave",        "isActive" to true,  "name" to "Leave Automation"),
+            mapOf("ruleId" to "notification", "isActive" to true,  "name" to "Push Notification"),
+            mapOf("ruleId" to "audit",        "isActive" to true,  "name" to "Audit Log"),
+            mapOf("ruleId" to "payroll",      "isActive" to true,  "name" to "Payroll Automation"),
+            mapOf("ruleId" to "kpi",          "isActive" to true,  "name" to "KPI Auto-scoring"),
+            mapOf("ruleId" to "ai_review",    "isActive" to true,  "name" to "AI Performance Review"),
+            mapOf("ruleId" to "leave_expiry", "isActive" to true,  "name" to "Leave Expiry Checker")
+        )
+        rules.forEach { col.document(it["ruleId"] as String).set(it).await() }
+        return rules.size
+    }
+
+    private suspend fun seedNotifications(): Int {
+        val col = db.collection(Constants.Collections.NOTIFICATIONS)
+        val notifs = listOf(
+            mapOf(
+                "notificationId" to "notif_001",
+                "userId" to HR_UID,
+                "title" to "Pengajuan Cuti Baru",
+                "message" to "Budi Santoso mengajukan cuti tahunan (3 hari) mulai 20 Jul 2026.",
+                "type" to "leave_request",
+                "isRead" to false,
+                "createdAt" to System.currentTimeMillis()
+            ),
+            mapOf(
+                "notificationId" to "notif_002",
+                "userId" to MGR_UID,
+                "title" to "Payroll Menunggu Approval",
+                "message" to "Payroll bulan Juni 2026 untuk Budi Santoso menunggu persetujuan Anda.",
+                "type" to "payroll_approval",
+                "isRead" to false,
+                "createdAt" to System.currentTimeMillis() - 3600000
+            ),
+            mapOf(
+                "notificationId" to "notif_003",
+                "userId" to MGR_UID,
+                "title" to "Karyawan Terlambat",
+                "message" to "Dewi Lestari terlambat 25 menit hari ini (check-in 08:25).",
+                "type" to "attendance_late",
+                "isRead" to true,
+                "createdAt" to System.currentTimeMillis() - 7200000
+            )
+        )
+        notifs.forEach { col.document(it["notificationId"] as String).set(it).await() }
+        return notifs.size
+    }
+
+    suspend fun migrateUsersToEmployees(): String {
+        val usersCol = db.collection("users")
+        val empCol = db.collection("employees")
+
+        val allUsers = usersCol.get().await().documents.mapNotNull { doc ->
+            doc.toObject(com.ptniger.hris.data.model.User::class.java)?.copy(userId = doc.id)
+        }
+
+        var created = 0
+        var skipped = 0
+
+        allUsers.forEach { user ->
+            if (user.employeeId.isNotEmpty()) {
+                val empExists = try {
+                    empCol.document(user.employeeId).get().await().exists()
+                } catch (_: Exception) { false }
+                if (empExists) { skipped++; return@forEach }
+            }
+
+            val employeeId = if (user.employeeId.isNotEmpty()) user.employeeId
+                             else "emp_${user.userId.take(8)}_${System.currentTimeMillis()}"
+
+            val role = user.primaryRole.ifEmpty { user.role }
+            val employee = mapOf(
+                "employeeId"       to employeeId,
+                "userId"           to user.userId,
+                "name"             to user.name.ifEmpty { user.fullName },
+                "email"            to user.email,
+                "nik"              to "",
+                "phone"            to "",
+                "position"         to getRoleDisplayName(role),
+                "department"       to getDeptForRole(role),
+                "branch"           to user.branch.ifEmpty { "Semarang" },
+                "officeId"         to user.officeId.ifEmpty { "office_main" },
+                "managerId"        to "",
+                "joinDate"         to "",
+                "employmentStatus" to "active",
+                "baseSalary"       to 0.0,
+                "leaveQuota"       to 12,
+                "workScheduleId"   to "default",
+                "isFaceRegistered" to false,
+                "faceEmbedding"    to emptyList<Float>()
+            )
+            empCol.document(employeeId).set(employee).await()
+
+            if (user.employeeId.isEmpty() || user.employeeId != employeeId) {
+                usersCol.document(user.userId).update("employeeId", employeeId).await()
+            }
+            created++
+        }
+
+        return "Migrasi selesai: $created employee record dibuat, $skipped sudah ada."
+    }
+
+    private fun getRoleDisplayName(role: String) = when(role) {
+        Constants.Role.MANAGER     -> "Manager"
+        Constants.Role.HR          -> "HR Specialist"
+        Constants.Role.FINANCE     -> "Finance Staff"
+        Constants.Role.SUPER_ADMIN -> "Super Administrator"
+        else -> "Staff"
+    }
+
+    private fun getDeptForRole(role: String) = when(role) {
+        Constants.Role.MANAGER     -> "Management"
+        Constants.Role.HR          -> "Human Resources"
+        Constants.Role.FINANCE     -> "Finance"
+        Constants.Role.SUPER_ADMIN -> "IT/Management"
+        else -> "General"
     }
 }

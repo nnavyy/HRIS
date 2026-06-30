@@ -44,10 +44,22 @@ class DashboardViewModel : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             val allEmployees = employeeRepo.getAll()
+            
+            // Team members: bawahan langsung (managerId == userId) ATAU se-departemen
             val teamMembers = allEmployees.filter { 
                 it.managerId == userId || (department.isNotEmpty() && it.department.equals(department, ignoreCase = true)) 
             }
-            val pendingLeave = leaveRepo.getPendingCount(department)
+            
+            // Ambil employeeId manager ini dari Firestore
+            val managerEmployee = employeeRepo.getByUserId(userId)
+            val managerEmpId = managerEmployee?.employeeId ?: ""
+
+            val pendingLeave = if (managerEmpId.isNotEmpty()) {
+                leaveRepo.getPendingCountByManagerId(managerEmpId)
+            } else {
+                leaveRepo.getPendingCount(department)
+            }
+            
             val allPresentToday = attendanceRepo.getAllToday()
             val teamMemberIds = teamMembers.map { it.employeeId }.toSet()
             val presentToday = allPresentToday.count { it.employeeId in teamMemberIds }

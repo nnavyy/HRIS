@@ -165,8 +165,17 @@ class PayrollRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun processApproval(payrollId: String, managerId: String, isApproved: Boolean, notes: String): Result<Unit> {
+    suspend fun processApproval(payrollId: String, approverId: String, isApproved: Boolean, notes: String): Result<Unit> {
         return try {
+            // Validasi: hanya Manager yang boleh approve
+            val approverUser = db.collection("users")
+                .document(approverId).get().await()
+                .toObject(com.ptniger.hris.data.model.User::class.java)
+            val approverRole = approverUser?.primaryRole?.ifEmpty { approverUser.role } ?: ""
+            if (approverRole != Constants.Role.MANAGER && approverRole != Constants.Role.SUPER_ADMIN) {
+                return Result.failure(Exception("Hanya Manager yang dapat menyetujui payroll."))
+            }
+
             val doc = col.document(payrollId).get().await()
             val payroll = doc.toObject(Payroll::class.java) ?: throw Exception("Payroll not found")
             if (payroll.status != Constants.PayrollStatus.PENDING_APPROVAL) throw Exception("Payroll is not pending approval")
@@ -177,10 +186,10 @@ class PayrollRepository {
                 "approvalNotes" to notes
             )
             if (isApproved) {
-                updates["approvedByManagerId"] = managerId
+                updates["approvedByManagerId"] = approverId
                 updates["approvedAt"] = System.currentTimeMillis()
             } else {
-                updates["rejectedByManagerId"] = managerId
+                updates["rejectedByManagerId"] = approverId
                 updates["rejectedAt"] = System.currentTimeMillis()
                 updates["rejectionReason"] = notes
             }

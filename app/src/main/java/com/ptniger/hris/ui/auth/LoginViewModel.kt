@@ -18,20 +18,23 @@ class LoginViewModel : ViewModel() {
     init { checkExistingSession() }
 
     private fun checkExistingSession() {
+        _uiState.value = _uiState.value.copy(isRestoringSession = true)
         if (authRepo.currentUser != null) {
             viewModelScope.launch {
                 _uiState.value = _uiState.value.copy(isLoading = true)
                 authRepo.getCurrentUserData().fold(
                     onSuccess = { user ->
-                        _uiState.value = _uiState.value.copy(isLoading = false, loggedInUser = user)
+                        _uiState.value = _uiState.value.copy(isLoading = false, isRestoringSession = false, loggedInUser = user)
                         // Pre-load automation rules for the session
                         viewModelScope.launch { try { AutomationEngine.refreshRules() } catch (_: Exception) {} }
                     },
                     onFailure = {
-                        _uiState.value = _uiState.value.copy(isLoading = false)
+                        _uiState.value = _uiState.value.copy(isLoading = false, isRestoringSession = false)
                     }
                 )
             }
+        } else {
+            _uiState.value = _uiState.value.copy(isRestoringSession = false)
         }
     }
 
@@ -72,12 +75,14 @@ class LoginViewModel : ViewModel() {
     }
 
     fun clearLoginState() {
-        _uiState.value = LoginUiState()
+        authRepo.logout()
+        _uiState.value = LoginUiState(isRestoringSession = false)
     }
 }
 
 data class LoginUiState(
     val isLoading: Boolean = false,
+    val isRestoringSession: Boolean = false,
     val error: String? = null,
     val loggedInUser: User? = null
 )

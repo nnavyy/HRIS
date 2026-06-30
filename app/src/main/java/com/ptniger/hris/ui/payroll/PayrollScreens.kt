@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,25 @@ import java.util.Locale
 
 @Composable
 fun PayrollApprovalScreen(user: User, onBack: () -> Unit = {}, vm: PayrollViewModel = viewModel()) {
+    val role = user.primaryRole.ifEmpty { user.role }
+
+    // ROLE GUARD: hanya Manager yang bisa approve
+    if (role != Constants.Role.MANAGER && role != Constants.Role.SUPER_ADMIN) {
+        Box(Modifier.fillMaxSize().background(Background), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                Icon(Icons.Default.Info, null, tint = Red, modifier = Modifier.size(48.dp))
+                Spacer(Modifier.height(8.dp))
+                Text("Akses Ditolak", style = MaterialTheme.typography.titleMedium)
+                Text("Hanya Manager yang dapat menyetujui payroll.",
+                    style = MaterialTheme.typography.bodySmall, color = TextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(onClick = onBack) { Text("Kembali") }
+            }
+        }
+        return
+    }
+
     val payrolls by vm.payrolls.collectAsState()
     val message by vm.message.collectAsState()
     LaunchedEffect(Unit) { vm.getTeamPayrolls(user.userId) }

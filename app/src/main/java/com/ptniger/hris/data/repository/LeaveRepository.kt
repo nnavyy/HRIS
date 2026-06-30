@@ -323,4 +323,12 @@ class LeaveRepository {
             query.get().await().size()
         } catch (e: Exception) { 0 }
     }
+
+    suspend fun getPendingCountByManagerId(managerEmployeeId: String): Int {
+        return try {
+            col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+                .whereEqualTo("managerId", managerEmployeeId)
+                .get().await().size()
+        } catch (e: Exception) { 0 }
+    }
 }

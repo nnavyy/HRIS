@@ -2,6 +2,7 @@ package com.ptniger.hris.ui.admin
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -150,15 +151,17 @@ private fun ScheduleForm(initial: WorkSchedule?, userId: String, onSave: (WorkSc
 
         Text("Hari Kerja", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
         Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), 
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             dayLabels.forEach { (day, label) ->
                 FilterChip(
                     selected = day in workDays,
                     onClick = {
                         workDays = if (day in workDays) workDays - day else workDays + day
                     },
-                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.weight(1f)
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) }
                 )
             }
         }

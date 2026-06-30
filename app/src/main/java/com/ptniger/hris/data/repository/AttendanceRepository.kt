@@ -153,7 +153,10 @@ class AttendanceRepository {
                     officeLongitude = office?.longitude ?: 0.0,
                     checkIn = checkInTime,
                     deviceModel = android.os.Build.MODEL,
-                    workScheduleId = schedule.scheduleId
+                    workScheduleId = schedule.scheduleId,
+                    checkInMode = attendance.checkInMode,
+                    faceRecognitionSimilarity = attendance.faceRecognitionSimilarity,
+                    livenessVerified = attendance.livenessVerified
                 )
                 val ref = col.add(finalAttendance).await()
                 
@@ -204,7 +207,10 @@ class AttendanceRepository {
                             "isMockLocation" to attendance.isMockLocation,
                             "serverTimestamp" to attendance.serverTimestamp,
                             "deviceTimestamp" to attendance.deviceTimestamp,
-                            "isTimeTampered" to attendance.isTimeTampered
+                            "isTimeTampered" to attendance.isTimeTampered,
+                            "checkInMode" to attendance.checkInMode,
+                            "faceRecognitionSimilarity" to attendance.faceRecognitionSimilarity,
+                            "livenessVerified" to attendance.livenessVerified
                         )
                     ).await()
                     

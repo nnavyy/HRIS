@@ -45,6 +45,8 @@ fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardVie
             MetricCard(Modifier.weight(1f), "KPI Config", "Aktif", "Kelola KPI", Icons.Default.Star, PurpleSoft, Purple)
         }
         Spacer(Modifier.height(16.dp))
+        MyMenuSection(onNavigate)
+        Spacer(Modifier.height(16.dp))
         Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Data Karyawan", Icons.Default.People, BlueSoft, Blue) { onNavigate("employees") }
@@ -85,6 +87,8 @@ fun FinanceDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
             MetricCard(Modifier.weight(1f), "KPI Bonus", "Aktif", "Terhitung otomatis", Icons.AutoMirrored.Filled.TrendingUp, GreenSoft, Green)
         }
         Spacer(Modifier.height(16.dp))
+        MyMenuSection(onNavigate)
+        Spacer(Modifier.height(16.dp))
         Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Kelola Payroll", Icons.Default.Payments, OrangeSoft, Orange) { onNavigate("payroll") }
@@ -114,50 +118,7 @@ fun ManagerDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
             MetricCard(Modifier.weight(1f), "Hadir Hari Ini", "${s.presentToday}", "Absensi tim", Icons.Default.CheckCircle, GreenSoft, Green)
             MetricCard(Modifier.weight(1f), "Approval Payroll", "Pending", "Perlu review", Icons.Default.Payments, BlueSoft, Blue)
         }
-        Spacer(Modifier.height(16.dp))
-        Text("Menu Saya", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Surface(
-                onClick = { onNavigate("attendance") },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
-            ) {
-                Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(GreenSoft), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.AccessTime, null, tint = Green, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text("AbsenKu", style = MaterialTheme.typography.labelSmall)
-                }
-            }
-            Surface(
-                onClick = { onNavigate("leave_request") },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
-            ) {
-                Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(BlueSoft), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.CalendarMonth, null, tint = Blue, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text("CutiKu", style = MaterialTheme.typography.labelSmall)
-                }
-            }
-            Surface(
-                onClick = { onNavigate("salary_slip") },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
-            ) {
-                Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(OrangeSoft), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Payments, null, tint = Orange, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text("GajiKu", style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
+        MyMenuSection(onNavigate)
         Spacer(Modifier.height(16.dp))
         Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
         Spacer(Modifier.height(8.dp))
@@ -194,7 +155,9 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
             MetricCard(Modifier.weight(1f), "Automation", "${s.automationRules}", "Rules aktif", Icons.Default.Settings, TealSoft, Teal)
             MetricCard(Modifier.weight(1f), "Audit Events", "${s.auditEvents}", "Bulan ini", Icons.Default.FindInPage, RedSoft, Red)
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
+        MyMenuSection(onNavigate)
+        Spacer(Modifier.height(16.dp))
         // Quick Actions
         Button(
             onClick = { onNavigate("manage_accounts") },
@@ -395,17 +358,55 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
             MetricCard(Modifier.weight(1f), "Skor KPI", String.format("%.1f", s.kpiScore), com.ptniger.hris.utils.KpiCalculator.getBonusLabel(s.kpiScore), Icons.Default.Star, PurpleSoft, Purple)
             MetricCard(Modifier.weight(1f), "Notifikasi", "${s.unreadNotifications}", "Belum dibaca", Icons.Default.Notifications, OrangeSoft, Orange)
         }
-        Spacer(Modifier.height(16.dp))
-        Text("Akses Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Absensi Harian", Icons.Default.AccessTime, GreenSoft, Green) { onNavigate("attendance") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Pengajuan Cuti", Icons.Default.CalendarMonth, BlueSoft, Blue) { onNavigate("leave_request") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Slip Gaji", Icons.Default.Payments, OrangeSoft, Orange) { onNavigate("salary_slip") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Hasil KPI Saya", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_result") }
+        MyMenuSection(onNavigate)
         Spacer(Modifier.height(100.dp))
+    }
+}
+
+@Composable
+fun MyMenuSection(onNavigate: (String) -> Unit) {
+    Text("Menu Saya", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+    Spacer(Modifier.height(8.dp))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Surface(
+            onClick = { onNavigate("attendance") },
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
+        ) {
+            Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(GreenSoft), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.AccessTime, null, tint = Green, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.height(6.dp))
+                Text("AbsenKu", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Surface(
+            onClick = { onNavigate("leave_request") },
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
+        ) {
+            Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(BlueSoft), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.CalendarMonth, null, tint = Blue, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.height(6.dp))
+                Text("CutiKu", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Surface(
+            onClick = { onNavigate("salary_slip") },
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp
+        ) {
+            Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(OrangeSoft), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Payments, null, tint = Orange, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.height(6.dp))
+                Text("GajiKu", style = MaterialTheme.typography.labelSmall)
+            }
+        }
     }
 }
 

@@ -16,5 +16,9 @@ data class Employee(
     val baseSalary: Double = 0.0,
     val leaveQuota: Int = 12,
     val userId: String = "",
-    val workScheduleId: String = "default"   // jadwal kerja yang di-assign
+    val workScheduleId: String = "default",   // jadwal kerja yang di-assign
+    val faceEmbedding: List<Float> = emptyList(),
+    val faceRegisteredAt: Long = 0L,
+    val faceRegisteredBy: String = "",
+    val isFaceRegistered: Boolean = false
 )

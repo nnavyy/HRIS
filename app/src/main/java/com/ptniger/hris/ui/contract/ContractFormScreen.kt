@@ -234,7 +234,7 @@ fun ContractFormScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(100.dp))
         }
     }
 }

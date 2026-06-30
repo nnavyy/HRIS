@@ -40,5 +40,10 @@ data class Attendance(
     val isEarlyLeave: Boolean = false,       // flag pulang sebelum earlyLeaveBuffer
     val workScheduleId: String = "",         // jadwal yang dipakai saat absen (untuk audit)
     
+    // Face Recognition
+    val checkInMode: String = "selfie",        // "selfie" | "face_recognition"
+    val faceRecognitionSimilarity: Float = 0f, // similarity score saat check-in
+    val livenessVerified: Boolean = false,     // apakah liveness check passed
+    
     val createdAt: Long = System.currentTimeMillis()
 )
