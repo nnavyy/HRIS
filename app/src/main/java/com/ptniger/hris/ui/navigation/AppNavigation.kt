@@ -249,9 +249,12 @@ fun MainScaffold(
                                 }
                             )
                         } else if (currentRoute == "face_registration") {
-                            // Will be implemented in Phase 3
-                        } else if (currentRoute == "face_attendance") {
-                            // Will be implemented in Phase 3
+                            com.ptniger.hris.ui.attendance.FaceRegistrationScreen(
+                                employeeId = faceRegistrationEmployeeId ?: "",
+                                employeeName = faceRegistrationEmployeeName ?: "",
+                                user = user,
+                                onBack = { onNavigate("employees") }
+                            )
                         } else {
                             DashboardRouter(user = user, onNavigate = onNavigateToDetail)
                         }

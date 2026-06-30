@@ -27,7 +27,10 @@ import kotlinx.coroutines.launch
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
-
+import com.ptniger.hris.utils.AppUpdateChecker
+import com.ptniger.hris.utils.AppUpdateInfo
+import com.ptniger.hris.BuildConfig
+import androidx.compose.ui.platform.LocalContext
 @Composable
 fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadHrDashboard() }
@@ -431,6 +434,54 @@ fun DashboardLayout(title: String, subtitle: String, user: User, content: @Compo
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp),
             content = content
         )
+        
+        // Auto-Update Checker Logic
+        val context = LocalContext.current
+        var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+        var showUpdateDialog by remember { mutableStateOf(false) }
+
+        LaunchedEffect(Unit) {
+            val checker = AppUpdateChecker()
+            val info = checker.checkForUpdate()
+            if (info != null && info.latestVersionCode > BuildConfig.VERSION_CODE) {
+                updateInfo = info
+                showUpdateDialog = true
+            }
+        }
+
+        if (showUpdateDialog && updateInfo != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    if (updateInfo?.isForceUpdate != true) {
+                        showUpdateDialog = false
+                    }
+                },
+                title = { Text("Update Tersedia") },
+                text = {
+                    Column {
+                        Text("Versi baru (${updateInfo?.latestVersionName}) telah tersedia.")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(updateInfo?.releaseNotes ?: "Silakan perbarui aplikasi untuk fitur terbaru dan perbaikan bug.")
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        updateInfo?.downloadUrl?.let { url ->
+                            AppUpdateChecker.openDownloadLink(context, url)
+                        }
+                    }) {
+                        Text("Update Sekarang")
+                    }
+                },
+                dismissButton = {
+                    if (updateInfo?.isForceUpdate != true) {
+                        TextButton(onClick = { showUpdateDialog = false }) {
+                            Text("Nanti Saja")
+                        }
+                    }
+                }
+            )
+        }
     }
 }
 

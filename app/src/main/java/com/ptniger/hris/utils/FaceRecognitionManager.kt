@@ -56,6 +56,17 @@ object FaceRecognitionManager {
         }
 
     /**
+     * Versi synchronous/callback untuk mendeteksi wajah di bitmap.
+     * Tidak memblokir coroutine atau memaksa bikin scope baru tiap frame.
+     */
+    fun detectFacesSync(bitmap: Bitmap, onResult: (List<Face>) -> Unit) {
+        val image = InputImage.fromBitmap(bitmap, 0)
+        detector.process(image)
+            .addOnSuccessListener { faces -> onResult(faces) }
+            .addOnFailureListener { onResult(emptyList()) }
+    }
+
+    /**
      * Crop bitmap ke bounding box wajah (dengan padding 20%).
      */
     fun cropFaceBitmap(bitmap: Bitmap, face: Face): Bitmap {

@@ -36,6 +36,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.ptniger.hris.utils.toCorrectBitmap
+import java.util.concurrent.Executors
 
 @Composable
 fun FaceAttendanceScreen(
@@ -67,10 +69,16 @@ fun FaceAttendanceScreen(
     val employeeRepo = remember { EmployeeRepository() }
     val attendanceRepo = remember { AttendanceRepository() }
     val coroutineScope = rememberCoroutineScope()
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     
     var allEmployees by remember { mutableStateOf<List<com.ptniger.hris.data.model.Employee>>(emptyList()) }
 
-    DisposableEffect(Unit) { onDispose { faceNetModel.close() } }
+    DisposableEffect(Unit) {
+        onDispose {
+            faceNetModel.close()
+            cameraExecutor.shutdown()
+        }
+    }
     
     LaunchedEffect(Unit) {
         allEmployees = employeeRepo.getAll().filter { it.isFaceRegistered }
@@ -160,15 +168,30 @@ fun FaceAttendanceScreen(
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
                         .also { analysis ->
-                            analysis.setAnalyzer(ContextCompat.getMainExecutor(ctx)) { imageProxy ->
-                                val bitmap = try { imageProxy.toBitmap() } catch (e: Exception) { null }
+                            var lastAnalysisTime = 0L
+                            var noFaceFrameCount = 0
+
+                            analysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                                val currentTime = System.currentTimeMillis()
+                                if (currentTime - lastAnalysisTime < 300) {
+                                    imageProxy.close()
+                                    return@setAnalyzer
+                                }
+                                lastAnalysisTime = currentTime
+
+                                val bitmap = try { 
+                                    imageProxy.toCorrectBitmap() 
+                                } catch (e: Exception) { 
+                                    null 
+                                }
                                 
                                 if (bitmap != null && !isVerifying) {
-                                    CoroutineScope(Dispatchers.Main).launch {
-                                        try {
-                                            val faces = FaceRecognitionManager.detectFaces(bitmap)
-                                            if (faces.isNotEmpty()) {
-                                                val face = faces.first()
+                                    FaceRecognitionManager.detectFacesSync(bitmap) { faces ->
+                                        if (faces.isNotEmpty()) {
+                                            noFaceFrameCount = 0
+                                            val face = faces.first()
+                                            
+                                            coroutineScope.launch {
                                                 latestBitmap = bitmap
                                                 latestFace = face
                                                 if (detectionState != FaceDetectionState.DETECTED) {
@@ -177,13 +200,21 @@ fun FaceAttendanceScreen(
                                                 if (FaceRecognitionManager.isBlinking(face)) {
                                                     blinkDetected = true
                                                 }
-                                            } else {
-                                                detectionState = FaceDetectionState.SEARCHING
                                             }
-                                        } catch (_: Exception) {}
+                                        } else {
+                                            noFaceFrameCount++
+                                            if (noFaceFrameCount > 3) {
+                                                coroutineScope.launch {
+                                                    detectionState = FaceDetectionState.SEARCHING
+                                                    blinkDetected = false
+                                                }
+                                            }
+                                        }
+                                        imageProxy.close()
                                     }
+                                } else {
+                                    imageProxy.close()
                                 }
-                                imageProxy.close()
                             }
                         }
 
