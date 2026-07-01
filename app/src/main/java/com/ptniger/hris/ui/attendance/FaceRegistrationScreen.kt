@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +65,18 @@ fun FaceRegistrationScreen(
     var faceNetModel by remember { mutableStateOf<FaceNetModel?>(null) }
     var modelError by remember { mutableStateOf<String?>(null) }
     
+    val employeeRepo = remember { EmployeeRepository() }
+    var isAlreadyRegistered by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val emp = employeeRepo.getById(employeeId)
+        if (emp?.isFaceRegistered == true) {
+            isAlreadyRegistered = true
+            message = "Wajah karyawan ini sudah terdaftar."
+            detectionState = FaceDetectionState.REGISTERED
+        }
+    }
+    
     LaunchedEffect(Unit) {
         try {
             faceNetModel = FaceNetModel(context)
@@ -71,7 +85,6 @@ fun FaceRegistrationScreen(
             message = "Gagal memuat AI Model: ${e.message}"
         }
     }
-    val employeeRepo = remember { EmployeeRepository() }
     val coroutineScope = rememberCoroutineScope()
 
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
@@ -106,6 +119,17 @@ fun FaceRegistrationScreen(
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
+
+        // Back Button
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(8.dp)
+        ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+        }
 
         // Camera Preview
         if (hasCameraPermission) {
@@ -235,13 +259,21 @@ fun FaceRegistrationScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            val headAngleY = latestFace?.headEulerAngleY ?: 0f
+            val pose = when {
+                headAngleY > 15 -> "Menoleh Kanan"
+                headAngleY < -15 -> "Menoleh Kiri"
+                else -> "Menghadap Depan"
+            }
+
             Text(
                 when {
+                    isAlreadyRegistered -> "Wajah karyawan ini sudah terdaftar di sistem."
                     message.isNotEmpty() -> message
                     detectionState == FaceDetectionState.DETECTED && blinkDetected ->
-                        "✓ Wajah terdeteksi & liveness OK — siap daftarkan"
+                        "✓ Wajah terdeteksi ($pose) & liveness OK"
                     detectionState == FaceDetectionState.DETECTED ->
-                        "Wajah terdeteksi ✓ — Berkedip sekali untuk liveness"
+                        "Wajah terdeteksi ($pose) — Berkedip sekali untuk liveness"
                     else -> {
                         val nameParts = employeeName.split(" ")
                         val firstName = if (nameParts.isNotEmpty()) nameParts[0] else employeeName
@@ -296,18 +328,23 @@ fun FaceRegistrationScreen(
                         }
                     }
                 },
-                enabled = detectionState == FaceDetectionState.DETECTED && blinkDetected && !isRegistering,
+                enabled = !isAlreadyRegistered && detectionState == FaceDetectionState.DETECTED && blinkDetected && !isRegistering,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Blue)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Blue,
+                    disabledContainerColor = Color.DarkGray,
+                    disabledContentColor = Color.LightGray
+                )
             ) {
                 if (isRegistering) {
-                    CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Menyimpan...")
                 } else {
-                    Text("Tangkap & Daftarkan")
+                    Text(if (isAlreadyRegistered) "Wajah Telah Terdaftar" else "Tangkap & Daftarkan", style = MaterialTheme.typography.labelLarge)
                 }
             }
-
             TextButton(onClick = onBack) {
                 Text("Batal", color = Color.White.copy(alpha = 0.7f))
             }
