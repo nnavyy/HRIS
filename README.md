@@ -7,10 +7,11 @@ Aplikasi ini tidak hanya sekadar alat pencatat absen, melainkan sebuah ekosistem
 ---
 
 ## 🎯 Kegunaan Utama
-1. **Mendisiplinkan Kehadiran**: Mencegah titip absen dengan sistem validasi GPS (berdasarkan lokasi kantor) dan foto *selfie* langsung dari kamera.
-2. **Otomatisasi Penilaian Kinerja (KPI)**: Kinerja dinilai secara objektif menggunakan data absensi (keterlambatan mengurangi skor), *Peer Review* (penilaian antar rekan kerja dengan sistem bintang 1-5), dan dirangkum secara cerdas oleh AI.
-3. **Digitalisasi Dokumen**: Mengubah proses tanda tangan kontrak kerja yang tadinya di atas kertas menjadi tanda tangan digital (*e-signature*) langsung di layar HP.
-4. **Transparansi Gaji & Cuti**: Karyawan dapat melihat sisa jatah cuti, memantau status persetujuan cuti, serta mengunduh slip gaji bulanan mereka sendiri tanpa perlu terus-menerus bertanya ke HRD.
+1. **Mendisiplinkan Kehadiran (AI Face Recognition & GPS)**: Mencegah titip absen dengan verifikasi identitas mutlak menggunakan **One-Shot Biometric Learning**. AI memastikan kecocokan wajah karyawan, melacak pose (kanan/kiri/depan), dan mendeteksi kedipan (*Liveness*) untuk membedakan wajah asli dari sekadar foto. Dilengkapi validasi radius lokasi GPS.
+2. **Otomatisasi Penilaian Kinerja (AI Reviewer & KPI)**: Kinerja dinilai secara objektif menggunakan data absensi, *Peer Review*, dan dirangkum secara kontekstual oleh kecerdasan buatan (Groq Llama 3) untuk menghasilkan evaluasi tanpa bias.
+3. **Smart Onboarding (KTP OCR Scanner)**: Mempercepat proses penambahan karyawan baru dengan teknologi pemindaian cerdas yang secara otomatis mengekstrak NIK dan Nama dari KTP karyawan.
+4. **Digitalisasi Dokumen & E-Signature**: Mengubah proses tanda tangan kontrak kerja yang tadinya di atas kertas menjadi tanda tangan digital langsung di layar HP.
+5. **Transparansi Gaji & Cuti**: Karyawan dapat melihat sisa jatah cuti, memantau status persetujuan, serta mengunduh slip gaji bulanan secara mandiri.
 
 ---
 
@@ -20,7 +21,7 @@ Aplikasi ini memiliki 5 jenis pengguna dengan hak akses dan *dashboard* yang ber
 
 ### 1. Karyawan (Employee)
 Karyawan adalah pengguna utama aplikasi untuk keperluan *self-service*.
-- **Alur Absensi**: Setiap pagi dan sore, karyawan membuka aplikasi untuk melakukan *Check-In* dan *Check-Out*. Sistem akan mengecek apakah lokasi HP karyawan berada di dalam radius kantor. Karyawan juga diwajibkan melakukan *selfie*.
+- **Alur Absensi**: Setiap pagi dan sore, karyawan membuka aplikasi untuk melakukan *Check-In* dan *Check-Out*. Sistem akan memvalidasi posisi GPS dan mewajibkan karyawan memindai wajah mereka. Sistem Anti-Bypass memastikan karyawan yang sudah terdaftar wajahnya tidak dapat berbuat curang atau menggunakan foto orang lain.
 - **Alur Cuti**: Karyawan dapat mengajukan cuti dengan memilih tanggal. Sistem otomatis mengecek apakah sisa cuti masih ada dan apakah pengajuan dilakukan tidak mendadak (mematuhi aturan H-sekian). Pengajuan cuti ini akan masuk ke Manajer untuk disetujui.
 - **Alur Penilaian (Peer Review)**: Karyawan dapat memberikan penilaian rekan kerjanya menggunakan sistem 1-5 Bintang untuk menilai performa, kualitas, kontribusi, dan etika.
 - **Alur Tanda Tangan**: Karyawan baru dapat membaca draf kontrak kerja dan langsung menandatanganinya di layar HP.
@@ -33,8 +34,8 @@ Manajer bertugas mengawasi tim di bawah departemennya.
 
 ### 3. HRD (HR / Admin)
 HRD adalah penggerak utama administrasi perusahaan.
-- **Alur Data Master**: HRD membuat akun untuk karyawan baru, mendaftarkan wajah karyawan, dan mengatur jadwal kerja karyawan (misal: Shift Pagi, Shift Malam).
-- **Alur Penilaian AI (AI Review)**: Di akhir bulan, HRD dapat menekan tombol **"Generate AI Review"**. Aplikasi akan mengirimkan data absensi, data keterlambatan, dan hasil *peer review* ke kecerdasan buatan (AI Groq/Llama 3). AI akan membuatkan laporan evaluasi kinerja secara otomatis beserta saran perbaikan untuk karyawan tersebut!
+- **Alur Data Master**: HRD mengatur jadwal kerja, shift, serta menambahkan karyawan baru secara instan menggunakan fitur **Scan KTP OCR**. HRD juga bertugas meregistrasikan wajah karyawan ke dalam sistem biometrik AI.
+- **Alur Penilaian AI (AI Reviewer)**: Di akhir bulan, HRD dapat menekan tombol **"Generate AI Review"**. Aplikasi akan mengirimkan data absensi, data keterlambatan, dan hasil *peer review* ke kecerdasan buatan (Groq Llama 3 LLM). AI akan membuatkan laporan evaluasi kinerja secara otomatis beserta saran perbaikan untuk karyawan tersebut!
 - **Alur Penggajian (Payroll)**: HRD menekan tombol *Generate Payroll* di akhir bulan. Sistem akan menghitung gaji pokok, memotong gaji karena keterlambatan (otomatis terhubung ke absensi), dan menghitung uang lembur. Draft slip gaji ini kemudian dikirim ke departemen Finance.
 - **Alur Kontrak**: HRD membuat draf kontrak untuk karyawan dan memantau status tanda tangannya.
 
