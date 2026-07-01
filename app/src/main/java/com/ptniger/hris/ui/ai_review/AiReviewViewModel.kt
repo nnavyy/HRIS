@@ -71,11 +71,13 @@ class AiReviewViewModel : ViewModel() {
                 // Leave history: fetch all for this employee
                 val leaveHistory = leaveRepo.getByEmployee(employeeId)
 
-                val apiKey = configRepo.getGroqApiKey()
-                if (apiKey.isBlank()) {
+                // We now use BuildConfig.GROQ_API_KEY inside GroqAiClient
+
+                // Prevent generating review if absolutely no data exists
+                if (attendanceList.isEmpty() && kpiScores.isEmpty() && leaveHistory.isEmpty() && peerReviews.isEmpty()) {
                     _state.value = _state.value.copy(
                         isGenerating = false,
-                        error = "API Key Groq belum di-set. Hubungi Super Admin."
+                        error = "Tidak ada data kinerja (absensi, KPI, cuti, dll) untuk periode $period. Generasi review dibatalkan."
                     )
                     return@launch
                 }
@@ -88,7 +90,6 @@ class AiReviewViewModel : ViewModel() {
                     leaveHistory = leaveHistory,
                     peerReviews = peerReviews,
                     generatedBy = generatedByUserId,
-                    apiKey = apiKey,
                     triggerType = "on_demand"
                 )
 
@@ -153,5 +154,13 @@ class AiReviewViewModel : ViewModel() {
 
     fun clearMessage() {
         _state.value = _state.value.copy(message = null, error = null)
+    }
+
+    fun selectReview(review: AiReview) {
+        _state.value = _state.value.copy(
+            review = review,
+            message = null,
+            error = null
+        )
     }
 }

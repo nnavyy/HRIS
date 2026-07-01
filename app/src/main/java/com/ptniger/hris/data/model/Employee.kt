@@ -20,5 +20,6 @@ data class Employee(
     val faceEmbedding: List<Float> = emptyList(),
     val faceRegisteredAt: Long = 0L,
     val faceRegisteredBy: String = "",
-    val isFaceRegistered: Boolean = false
+    val isFaceRegistered: Boolean = false,
+    val faceImageUrl: String? = null
 )

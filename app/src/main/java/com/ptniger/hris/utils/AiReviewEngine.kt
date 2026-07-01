@@ -76,19 +76,20 @@ $context
 INSTRUKSI:
 - Gunakan Bahasa Indonesia yang profesional, objektif, dan konstruktif
 - JANGAN menyebutkan angka gaji, payroll, atau kompensasi apapun
+- JANGAN gunakan emoji atau emotikon sama sekali
 - Batasi output maksimal 400 kata
-- Format output HARUS mengikuti 4 seksi berikut (gunakan heading yang sama persis):
+- Format output HARUS mengikuti 4 seksi berikut (gunakan heading dengan huruf tebal (bold), BUKAN menggunakan tanda pagar ##):
 
-## Ringkasan Kinerja
+**Ringkasan Kinerja**
 [Tulis 2-3 kalimat ringkasan performa secara keseluruhan]
 
-## Kekuatan
+**Kekuatan**
 [Tulis 2-3 poin kekuatan karyawan berdasarkan data]
 
-## Area Pengembangan
+**Area Pengembangan**
 [Tulis 2-3 poin yang perlu ditingkatkan secara konstruktif]
 
-## Rekomendasi
+**Rekomendasi**
 [Tulis 1-2 rekomendasi konkret untuk pengembangan karyawan]
         """.trimIndent()
     }
@@ -105,7 +106,6 @@ INSTRUKSI:
         leaveHistory: List<LeaveRequest>,
         peerReviews: List<PeerReview>,
         generatedBy: String,
-        apiKey: String,
         triggerType: String = "on_demand"
     ): Result<AiReview> {
         return try {
@@ -114,7 +114,7 @@ INSTRUKSI:
             )
             val prompt = buildPrompt(context, employee.name, period)
 
-            val reviewTextResult = GroqAiClient.generateReview(prompt, apiKey)
+            val reviewTextResult = GroqAiClient.generateReview(prompt)
             if (reviewTextResult.isFailure) {
                 return Result.failure(reviewTextResult.exceptionOrNull() ?: Exception("AI generation failed"))
             }

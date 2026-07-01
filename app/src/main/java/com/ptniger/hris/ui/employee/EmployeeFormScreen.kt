@@ -7,17 +7,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
 import com.ptniger.hris.data.model.Employee
 import com.ptniger.hris.data.model.User
 import com.ptniger.hris.data.repository.EmployeeRepository
 import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.Constants
+import com.ptniger.hris.utils.KtpOcrManager
 
 val DEPARTMENTS = listOf(
     "Engineering", "Marketing", "Finance", "HR",
@@ -66,6 +69,62 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
         }
     }
 
+    val context = LocalContext.current
+    var isScanningKtp by remember { mutableStateOf(false) }
+    var ktpUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    fun createPhotoFile(ctx: android.content.Context): java.io.File {
+        val dir = java.io.File(ctx.cacheDir, "ktp_scans").also { it.mkdirs() }
+        return java.io.File(dir, "ktp_${System.currentTimeMillis()}.jpg")
+    }
+
+    val ktpCameraLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && ktpUri != null) {
+            isScanningKtp = true
+            try {
+                val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    val source = android.graphics.ImageDecoder.createSource(context.contentResolver, ktpUri!!)
+                    android.graphics.ImageDecoder.decodeBitmap(source)
+                } else {
+                    @Suppress("DEPRECATION")
+                    android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, ktpUri)
+                }
+                
+                val softwareBitmap = bitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+                
+                KtpOcrManager.extractKtpData(
+                    softwareBitmap,
+                    onResult = { result ->
+                        if (result.nik.isNotEmpty()) nik = result.nik
+                        if (result.name.isNotEmpty() && name.isEmpty()) name = result.name
+                        isScanningKtp = false
+                    },
+                    onError = { e ->
+                        android.widget.Toast.makeText(context, "Gagal membaca KTP: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                        isScanningKtp = false
+                    }
+                )
+            } catch (e: Exception) {
+                isScanningKtp = false
+            }
+        }
+    }
+
+    val cameraPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val file = createPhotoFile(context)
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            ktpUri = uri
+            ktpCameraLauncher.launch(uri)
+        } else {
+            android.widget.Toast.makeText(context, "Izin kamera diperlukan untuk scan KTP", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     LaunchedEffect(message) {
         if (message != null) {
             kotlinx.coroutines.delay(1500)
@@ -111,6 +170,38 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = {
+                        val hasCamera = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, android.Manifest.permission.CAMERA
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        if (hasCamera) {
+                            val file = createPhotoFile(context)
+                            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                            ktpUri = uri
+                            ktpCameraLauncher.launch(uri)
+                        } else {
+                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Blue),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Blue)
+                ) {
+                    if (isScanningKtp) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = Blue, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Memproses KTP...")
+                    } else {
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Scan KTP", modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Scan KTP (Otomatis Isi NIK & Nama)")
                     }
                 }
             }

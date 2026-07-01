@@ -90,5 +90,21 @@ class ProfileViewModel : ViewModel() {
         }
     }
     
+    fun updateProfileInfo(userId: String, updates: Map<String, Any>, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                db.collection(Constants.Collections.USERS).document(userId).update(updates).await()
+                _message.value = "Profil berhasil diperbarui"
+                onComplete(true)
+            } catch (e: Exception) {
+                _message.value = "Gagal memperbarui profil: ${e.message}"
+                onComplete(false)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+    
     fun clearMessage() { _message.value = null }
 }

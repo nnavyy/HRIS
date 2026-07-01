@@ -35,6 +35,8 @@ fun EmployeeListScreen(
         uri?.let { vm.importFromCsv(context, it) }
     }
     
+    var showCsvInstructions by remember { mutableStateOf(false) }
+    
     LaunchedEffect(Unit) { vm.loadAll() }
     val employees by vm.employees.collectAsState()
     
@@ -51,19 +53,11 @@ fun EmployeeListScreen(
 
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Start) {
             Text(
                 if (isManager) "Tim Saya" else "Data Karyawan",
                 style = MaterialTheme.typography.headlineMedium
             )
-            
-            // CSV Import Button (Only for HR or Super Admin)
-            if (user.primaryRole == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN || user.primaryRole == com.ptniger.hris.utils.Constants.Role.HR ||
-                user.role == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN || user.role == com.ptniger.hris.utils.Constants.Role.HR) {
-                IconButton(onClick = { csvLauncher.launch("text/comma-separated-values") }) {
-                    Icon(Icons.Default.UploadFile, contentDescription = "Import CSV", tint = Blue)
-                }
-            }
         }
 
         OutlinedTextField(
@@ -73,6 +67,23 @@ fun EmployeeListScreen(
             placeholder = { Text("Cari nama, NIK, departemen") },
             leadingIcon = { Icon(Icons.Default.Search, null) }
         )
+
+        // CSV Import Button (Only for HR or Super Admin)
+        if (user.primaryRole == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN || user.primaryRole == com.ptniger.hris.utils.Constants.Role.HR ||
+            user.role == com.ptniger.hris.utils.Constants.Role.SUPER_ADMIN || user.role == com.ptniger.hris.utils.Constants.Role.HR) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { showCsvInstructions = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Blue),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Blue)
+            ) {
+                Icon(Icons.Default.UploadFile, contentDescription = "Import CSV", modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Import CSV", style = MaterialTheme.typography.labelMedium)
+            }
+        }
 
         Spacer(Modifier.height(12.dp))
 
@@ -178,6 +189,40 @@ fun EmployeeListScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showAddMemberDialog = false }) { Text("Tutup") }
+            }
+        )
+    }
+
+    if (showCsvInstructions) {
+        AlertDialog(
+            onDismissRequest = { showCsvInstructions = false },
+            title = { Text("Instruksi Import CSV") },
+            text = {
+                Column {
+                    Text("Pastikan file CSV Anda memiliki format kolom berikut (pisahkan dengan koma):", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Spacer(Modifier.height(8.dp))
+                    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            "nik, name, email, phone, position, department, branch, joinDate, baseSalary, leaveQuota",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(12.dp),
+                            color = TextPrimary
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("Baris pertama akan diabaikan (dianggap sebagai Header).", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                }
+            },
+            confirmButton = {
+                Button(onClick = { 
+                    showCsvInstructions = false
+                    csvLauncher.launch("text/comma-separated-values") 
+                }, colors = ButtonDefaults.buttonColors(containerColor = Blue)) {
+                    Text("Pilih File CSV")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCsvInstructions = false }) { Text("Batal") }
             }
         )
     }

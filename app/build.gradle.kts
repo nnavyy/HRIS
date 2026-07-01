@@ -19,6 +19,10 @@ android {
     }
     namespace = "com.ptniger.hris"
     compileSdk = 36
+    
+    androidResources {
+        noCompress += "tflite"
+    }
 
     defaultConfig {
         applicationId = "com.ptniger.hris"
@@ -105,6 +109,9 @@ dependencies {
     
     // ML Kit Face Detection (offline, bundled)
     implementation("com.google.mlkit:face-detection:16.1.7")
+    
+    // ML Kit Text Recognition (OCR)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     // FaceNet model via TFLite (untuk face embedding)
     implementation("org.tensorflow:tensorflow-lite:2.14.0")

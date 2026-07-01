@@ -69,10 +69,6 @@ object QuarterlyReviewScheduler {
         val kpiRepo = KpiRepository()
         val leaveRepo = LeaveRepository()
         val peerRepo = PeerReviewRepository()
-        val configRepo = com.ptniger.hris.data.repository.AppConfigRepository()
-
-        val apiKey = configRepo.getGroqApiKey()
-        if (apiKey.isBlank()) return
 
         val cal = Calendar.getInstance()
         val month = cal.get(Calendar.MONTH) + 1
@@ -95,7 +91,6 @@ object QuarterlyReviewScheduler {
                     leaveHistory = leaveHistory,
                     peerReviews = peerReviews,
                     generatedBy = "system",
-                    apiKey = apiKey,
                     triggerType = "scheduled"
                 )
 

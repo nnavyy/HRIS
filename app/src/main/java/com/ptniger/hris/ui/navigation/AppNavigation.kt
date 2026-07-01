@@ -95,6 +95,7 @@ fun AppNavigation(
                 }
             }
             LoginScreen(
+                viewModel = loginVm,
                 onLoginSuccess = { user ->
                     // Navigation handled by LaunchedEffect above
                 }
@@ -194,7 +195,8 @@ fun MainScaffold(
                     "automation" -> AutomationScreen(user = user, onBack = { onNavigate("dashboard") })
                     "office_locations" -> OfficeLocationScreen(user = user, onBack = { onNavigate("dashboard") })
                     "manage_accounts" -> AccountManagementScreen(user = user, onBack = { onNavigate("dashboard") })
-                    "profile" -> ProfileScreen(user = user, onLogout = onLogout)
+                    "profile" -> ProfileScreen(user = user, onLogout = onLogout, onEditProfile = { onNavigate("edit_profile") }, onNavigateToFaceRegistration = { onNavigateToDetail("face_registration_self") })
+                    "edit_profile" -> com.ptniger.hris.ui.profile.EditProfileScreen(user = user, onBack = { onNavigate("profile") })
                     "contract_sign" -> ContractSignScreen(user = user, onBack = { onNavigate("dashboard") })
                     "contract_form" -> {
                         val emp = navigationEmployee
@@ -244,6 +246,13 @@ fun MainScaffold(
                                 employeeName = faceRegistrationEmployeeName ?: "",
                                 user = user,
                                 onBack = { onNavigate("employees") }
+                            )
+                        } else if (currentRoute == "face_registration_self") {
+                            com.ptniger.hris.ui.attendance.FaceRegistrationScreen(
+                                employeeId = user.employeeId.ifEmpty { user.userId },
+                                employeeName = user.name,
+                                user = user,
+                                onBack = { onNavigate("profile") }
                             )
                         } else {
                             DashboardRouter(user = user, onNavigate = onNavigateToDetail)

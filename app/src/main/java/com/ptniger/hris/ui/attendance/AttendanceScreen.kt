@@ -34,6 +34,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
@@ -55,9 +56,31 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
     // Use resolvedEmployeeId from state if available (resolved via email/userId fallback)
     val resolvedEmpId = if (state.resolvedEmployeeId.isNotEmpty()) state.resolvedEmployeeId else empId
 
+    val coroutineScope = rememberCoroutineScope()
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && imageUri != null && locationCoords != null) {
-            vm.submitAttendance(resolvedEmpId, imageUri!!, locationCoords!!.first, locationCoords!!.second, currentClockType, context, isMockDetected, user.email)
+            coroutineScope.launch {
+                try {
+                    val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        val source = android.graphics.ImageDecoder.createSource(context.contentResolver, imageUri!!)
+                        android.graphics.ImageDecoder.decodeBitmap(source)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, imageUri)
+                    }
+                    val softwareBitmap = bitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+                    
+                    com.ptniger.hris.utils.FaceRecognitionManager.detectFacesSync(softwareBitmap) { faces ->
+                        if (faces.isNotEmpty()) {
+                            vm.submitAttendance(resolvedEmpId, imageUri!!, locationCoords!!.first, locationCoords!!.second, currentClockType, context, isMockDetected, user.email)
+                        } else {
+                            android.widget.Toast.makeText(context, "Wajah tidak terdeteksi pada foto. Absensi dibatalkan.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(context, "Gagal memproses foto: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
         } else {
             vm.clearMessage()
         }
@@ -272,7 +295,8 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
             },
             onFallback = {
                 showFaceAttendance = false
-                launchCameraWithLocation() // fallback ke selfie biasa
+                vm.clearMessage()
+                android.widget.Toast.makeText(context, "Autentikasi wajah gagal 3 kali. Absen dibatalkan.", android.widget.Toast.LENGTH_LONG).show()
             },
             onBack = {
                 showFaceAttendance = false

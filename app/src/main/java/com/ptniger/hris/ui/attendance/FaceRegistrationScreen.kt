@@ -24,6 +24,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.ptniger.hris.data.model.User
 import com.ptniger.hris.data.repository.EmployeeRepository
 import com.ptniger.hris.ui.theme.Blue
@@ -56,7 +60,17 @@ fun FaceRegistrationScreen(
     var latestBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var latestFace by remember { mutableStateOf<com.google.mlkit.vision.face.Face?>(null) }
     
-    val faceNetModel = remember { FaceNetModel(context) }
+    var faceNetModel by remember { mutableStateOf<FaceNetModel?>(null) }
+    var modelError by remember { mutableStateOf<String?>(null) }
+    
+    LaunchedEffect(Unit) {
+        try {
+            faceNetModel = FaceNetModel(context)
+        } catch (e: Exception) {
+            modelError = e.message
+            message = "Gagal memuat AI Model: ${e.message}"
+        }
+    }
     val employeeRepo = remember { EmployeeRepository() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -64,7 +78,7 @@ fun FaceRegistrationScreen(
 
     DisposableEffect(Unit) {
         onDispose {
-            faceNetModel.close()
+            faceNetModel?.close()
             cameraExecutor.shutdown()
         }
     }
@@ -72,11 +86,31 @@ fun FaceRegistrationScreen(
     // CameraX setup
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
 
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasCameraPermission = granted
+        if (!granted) {
+            message = "Izin kamera diperlukan untuk mendaftarkan wajah."
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
 
         // Camera Preview
-        AndroidView(
-            factory = { ctx ->
+        if (hasCameraPermission) {
+            AndroidView(
+                factory = { ctx ->
                 val previewView = PreviewView(ctx)
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
@@ -117,8 +151,15 @@ fun FaceRegistrationScreen(
                                                 latestBitmap = bitmap
                                                 latestFace = face
                                                 detectionState = FaceDetectionState.DETECTED
-                                                if (FaceRecognitionManager.isBlinking(face)) {
-                                                    blinkDetected = true
+                                                val currentFaceNet = faceNetModel
+                                                if (currentFaceNet != null) {
+                                                    try {
+                                                        if (FaceRecognitionManager.isBlinking(face)) {
+                                                            blinkDetected = true
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        message = "Error liveness: ${e.message}"
+                                                    }
                                                 }
                                             }
                                         } else {
@@ -151,6 +192,11 @@ fun FaceRegistrationScreen(
             },
             modifier = Modifier.fillMaxSize()
         )
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Menunggu Izin Kamera...", color = Color.White)
+            }
+        }
 
         // Overlay: ellipse guide
         Canvas(Modifier.fillMaxSize()) {
@@ -216,11 +262,21 @@ fun FaceRegistrationScreen(
                         coroutineScope.launch {
                             try {
                                 val croppedFace = FaceRecognitionManager.cropFaceBitmap(bmp, face)
-                                val embedding = faceNetModel.getEmbedding(croppedFace)
+                                val embedding = faceNetModel?.getEmbedding(croppedFace)
+                                if (embedding == null) {
+                                    message = "Model AI tidak siap."
+                                    isRegistering = false
+                                    return@launch
+                                }
+                                message = "Menyimpan foto wajah..."
+                                val uploadResult = employeeRepo.uploadFaceImage(employeeId, croppedFace)
+                                val imageUrl = uploadResult.getOrNull()
+
                                 val result = employeeRepo.saveFaceEmbedding(
                                     employeeId = employeeId,
                                     embedding = embedding,
-                                    registeredBy = user.userId
+                                    registeredBy = user.userId,
+                                    faceImageUrl = imageUrl
                                 )
                                 if (result.isSuccess) {
                                     message = "Wajah berhasil didaftarkan! ✓"

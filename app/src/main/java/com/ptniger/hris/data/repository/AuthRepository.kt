@@ -94,5 +94,14 @@ class AuthRepository {
         }
     }
 
+    suspend fun updateProfile(userId: String, updates: Map<String, Any>): Result<Unit> {
+        return try {
+            db.collection(Constants.Collections.USERS).document(userId).update(updates).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun logout() { auth.signOut() }
 }

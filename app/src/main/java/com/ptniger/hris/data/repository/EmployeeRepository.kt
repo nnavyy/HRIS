@@ -113,17 +113,20 @@ class EmployeeRepository {
     suspend fun saveFaceEmbedding(
         employeeId: String,
         embedding: FloatArray,
-        registeredBy: String
+        registeredBy: String,
+        faceImageUrl: String? = null
     ): Result<Unit> {
         return try {
-            col.document(employeeId).update(
-                mapOf(
-                    "faceEmbedding"     to embedding.toList(),
-                    "isFaceRegistered"  to true,
-                    "faceRegisteredAt"  to System.currentTimeMillis(),
-                    "faceRegisteredBy"  to registeredBy
-                )
-            ).await()
+            val updateMap = mutableMapOf<String, Any>(
+                "faceEmbedding"     to embedding.toList(),
+                "isFaceRegistered"  to true,
+                "faceRegisteredAt"  to System.currentTimeMillis(),
+                "faceRegisteredBy"  to registeredBy
+            )
+            if (faceImageUrl != null) {
+                updateMap["faceImageUrl"] = faceImageUrl
+            }
+            col.document(employeeId).update(updateMap).await()
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
@@ -139,5 +142,22 @@ class EmployeeRepository {
             ).await()
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
+    }
+
+    suspend fun uploadFaceImage(employeeId: String, bitmap: android.graphics.Bitmap): Result<String> {
+        return try {
+            val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance().reference
+            val imageRef = storageRef.child("face_registrations/$employeeId.jpg")
+            
+            val baos = java.io.ByteArrayOutputStream()
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, baos)
+            val data = baos.toByteArray()
+            
+            val uploadTask = imageRef.putBytes(data).await()
+            val downloadUrl = imageRef.downloadUrl.await().toString()
+            Result.success(downloadUrl)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

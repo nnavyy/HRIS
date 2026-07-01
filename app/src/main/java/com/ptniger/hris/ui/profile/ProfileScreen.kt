@@ -28,9 +28,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Face
 
 @Composable
-fun ProfileScreen(user: User, onLogout: () -> Unit, vm: ProfileViewModel = viewModel()) {
+fun ProfileScreen(user: User, onLogout: () -> Unit, onEditProfile: () -> Unit, onNavigateToFaceRegistration: () -> Unit, vm: ProfileViewModel = viewModel()) {
     val roleName = RoleManager.getRoleDisplayName(user.role)
     val roleShort = RoleManager.getRoleShort(user.role)
     val color = when (user.role) { "hr" -> Blue; "finance" -> Orange; "manager" -> Teal; "super_admin" -> Purple; else -> Pink }
@@ -57,7 +60,14 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, vm: ProfileViewModel = viewM
     }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
-        Text("Profil", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 18.dp, end = 64.dp, top = 14.dp, bottom = 10.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically) {
+            Text("Profil", style = MaterialTheme.typography.headlineMedium)
+            IconButton(onClick = onEditProfile, modifier = Modifier.background(Surface, RoundedCornerShape(12.dp))) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit Profil", tint = Blue)
+            }
+        }
         
         if (message != null) {
             Surface(
@@ -141,6 +151,24 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, vm: ProfileViewModel = viewM
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             InfoBox(Modifier.weight(1f), "Branch", user.branch.ifEmpty { "-" })
             InfoBox(Modifier.weight(1f), "Department", user.departmentId.ifEmpty { "-" })
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            InfoBox(Modifier.weight(1f), "No. HP", user.phone ?: "-")
+            InfoBox(Modifier.weight(1f), "NIK", user.employeeId.ifEmpty { "-" })
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = onNavigateToFaceRegistration,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Green)
+        ) { 
+            Icon(Icons.Default.Face, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Daftarkan Wajah Absensi", color = Color.White) 
         }
 
         Spacer(Modifier.height(24.dp))

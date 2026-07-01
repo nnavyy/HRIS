@@ -283,14 +283,7 @@ fun FaceAttendanceScreen(
                 )
             }
 
-            Button(
-                onClick = onFallback,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
-            ) {
-                Text("Gunakan Selfie Manual", color = Color.White)
-            }
+
 
             TextButton(onClick = onBack) {
                 Text("Batal", color = Color.White.copy(alpha = 0.7f))

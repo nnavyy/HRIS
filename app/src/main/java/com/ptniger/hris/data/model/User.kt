@@ -17,5 +17,7 @@ data class User(
     val status: String = "active", // Legacy support
     val isActive: Boolean = true,
     val photoUrl: String = "",
+    val phone: String? = null,
+    val address: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

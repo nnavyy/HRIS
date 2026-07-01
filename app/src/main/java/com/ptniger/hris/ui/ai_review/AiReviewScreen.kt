@@ -249,7 +249,12 @@ fun AiReviewScreen(
                 AnimatedVisibility(visible = expandedHistory) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.history.take(5).forEach { historyReview ->
-                            Surface(shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp) {
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Surface,
+                                shadowElevation = 1.dp,
+                                modifier = Modifier.clickable { vm.selectReview(historyReview) }
+                            ) {
                                 Column(Modifier.padding(14.dp)) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text(historyReview.period, style = MaterialTheme.typography.titleSmall)
@@ -272,7 +277,7 @@ fun AiReviewScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(100.dp))
         }
     }
 }
@@ -295,8 +300,9 @@ private fun ReviewCard(review: AiReview, isHR: Boolean, onPublish: () -> Unit) {
             }
             HorizontalDivider(color = CardBorder)
 
-            // Parse 4 sections from reviewText
-            Text(review.reviewText, style = MaterialTheme.typography.bodySmall)
+            // Remove ## if the AI still outputs it, and ensure it renders properly
+            val cleanText = review.reviewText.replace("##", "**")
+            Text(cleanText, style = MaterialTheme.typography.bodySmall)
 
             if (isHR && review.status == "draft" && review.reviewId.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -337,9 +343,11 @@ private fun getCurrentQuarter(): String {
 private fun generatePeriodOptions(): List<String> {
     val cal = Calendar.getInstance()
     val currentYear = cal.get(Calendar.YEAR)
+    val currentQuarter = (cal.get(Calendar.MONTH) / 3) + 1
     val options = mutableListOf<String>()
     for (year in currentYear downTo (currentYear - 1)) {
         for (q in 4 downTo 1) {
+            if (year == currentYear && q > currentQuarter) continue
             options.add("$year-Q$q")
         }
     }
