@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -240,7 +241,24 @@ fun SalarySlipScreen(user: User, onBack: () -> Unit = {}, vm: PayrollViewModel =
     val payrolls by vm.payrolls.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     
-    LaunchedEffect(Unit) { vm.loadSlipForUser(user.employeeId, user.userId) }
+    // Load company info from first active office location
+    var companyInfo by remember { mutableStateOf(com.ptniger.hris.utils.PdfSlipGenerator.CompanyInfo()) }
+    LaunchedEffect(Unit) {
+        vm.loadSlipForUser(user.employeeId, user.userId)
+        try {
+            val offices = com.ptniger.hris.data.repository.OfficeLocationRepository().getActiveLocations()
+            val office = offices.firstOrNull()
+            if (office != null && office.companyName.isNotEmpty()) {
+                companyInfo = com.ptniger.hris.utils.PdfSlipGenerator.CompanyInfo(
+                    name = office.companyName,
+                    address = office.companyAddress,
+                    phone = office.companyPhone,
+                    email = office.companyEmail,
+                    npwp = office.companyNpwp
+                )
+            }
+        } catch (_: Exception) {}
+    }
 
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 64.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -260,14 +278,20 @@ fun SalarySlipScreen(user: User, onBack: () -> Unit = {}, vm: PayrollViewModel =
                             employeeName = p.employeeName.ifEmpty { user.fullName.ifEmpty { user.name } },
                             nik = user.nik,
                             position = "",
-                            department = user.departmentId
+                            department = user.departmentId,
+                            company = companyInfo,
+                            signatures = com.ptniger.hris.utils.PdfSlipGenerator.SignatureInfo(
+                                employeeName = p.employeeName.ifEmpty { user.name },
+                                managerName = "Manager",
+                                hrName = "HRD"
+                            )
                         )
                     },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(44.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Blue)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, Modifier.size(16.dp)) // placeholder icon
+                    Icon(Icons.Default.Download, null, Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Unduh Slip Gaji (PDF)")
                 }

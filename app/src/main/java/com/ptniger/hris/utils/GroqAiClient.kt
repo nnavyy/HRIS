@@ -2,6 +2,7 @@ package com.ptniger.hris.utils
 
 import com.ptniger.hris.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
@@ -34,9 +35,22 @@ object GroqAiClient {
      */
     suspend fun generateReview(prompt: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val apiKey = BuildConfig.GROQ_API_KEY
+            // Try local BuildConfig first, then fallback to Firestore app_configs
+            var apiKey = BuildConfig.GROQ_API_KEY
             if (apiKey.isBlank()) {
-                return@withContext Result.failure(Exception("Groq API key belum dikonfigurasi di local.properties."))
+                apiKey = try {
+                    val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection(Constants.Collections.APP_CONFIGS)
+                        .document("config_groq_api")
+                        .get()
+                        .await()
+                    (doc.getString("value") ?: "").also {
+                        if (it.isBlank() || it == "YOUR_API_KEY_HERE")
+                            return@withContext Result.failure(Exception("Groq API key belum dikonfigurasi. Masukkan di Firestore > app_configs > config_groq_api > value."))
+                    }
+                } catch (e: Exception) {
+                    return@withContext Result.failure(Exception("Gagal membaca API key dari Firestore: ${e.message}"))
+                }
             }
 
             val requestBody = JSONObject().apply {

@@ -124,10 +124,20 @@ object SeedDataManager {
     private suspend fun seedOfficeLocations(): Int {
         val col = db.collection(Constants.Collections.OFFICE_LOCATIONS)
         val offices = listOf(
-            mapOf("name" to "Kantor Pusat Semarang", "address" to "Jl. Pemuda No. 100, Semarang Tengah",
-                "latitude" to -6.9932, "longitude" to 110.4203, "allowedRadiusMeters" to 100.0, "isActive" to true),
-            mapOf("name" to "Cabang Ungaran", "address" to "Jl. Diponegoro No. 45, Ungaran",
-                "latitude" to -7.0372, "longitude" to 110.4029, "allowedRadiusMeters" to 150.0, "isActive" to true)
+            mapOf("name" to "Kantor Pusat Semarang",
+                "latitude" to -6.9932, "longitude" to 110.4203, "allowedRadiusMeters" to 100.0, "isActive" to true,
+                "companyName" to "PT NIGER INDONESIA",
+                "companyAddress" to "Jl. Pemuda No. 100, Semarang Tengah 50132",
+                "companyPhone" to "(024) 3456-7890",
+                "companyEmail" to "hr@ptniger.com",
+                "companyNpwp" to "01.234.567.8-509.000"),
+            mapOf("name" to "Cabang Ungaran",
+                "latitude" to -7.0372, "longitude" to 110.4029, "allowedRadiusMeters" to 150.0, "isActive" to true,
+                "companyName" to "PT NIGER INDONESIA - Cabang Ungaran",
+                "companyAddress" to "Jl. Diponegoro No. 45, Ungaran, Kab. Semarang 50511",
+                "companyPhone" to "(024) 6912-3456",
+                "companyEmail" to "ungaran@ptniger.com",
+                "companyNpwp" to "01.234.567.8-509.001")
         )
         offices.forEach { col.add(it).await() }
         return offices.size
@@ -663,13 +673,20 @@ object SeedDataManager {
     // ── APP CONFIGS ──────────────────────────────────────────────────────
     private suspend fun seedAppConfigs(): Int {
         val col = db.collection(Constants.Collections.APP_CONFIGS)
+        // Use BuildConfig API key if available, otherwise placeholder
+        val groqKey = try {
+            val key = com.ptniger.hris.BuildConfig.GROQ_API_KEY
+            if (key.isNotBlank()) key else "YOUR_API_KEY_HERE"
+        } catch (_: Exception) { "YOUR_API_KEY_HERE" }
+
         val configs = listOf(
             mapOf("configId" to "config_groq_api", "key" to "groq_api_key",
-                "value" to "YOUR_API_KEY_HERE",
+                "value" to groqKey,
                 "description" to "API Key untuk engine Groq AI (Llama 3)",
                 "isSecret" to true, "updatedAt" to System.currentTimeMillis())
         )
-        configs.forEach { col.document(it["configId"] as String).set(it).await() }
+        // Use merge so we don't overwrite a manually-set key in Firestore
+        configs.forEach { col.document(it["configId"] as String).set(it, com.google.firebase.firestore.SetOptions.merge()).await() }
         return configs.size
     }
 

@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -50,13 +52,20 @@ class OfficeLocationViewModel : ViewModel() {
         }
     }
 
-    fun addLocation(name: String, lat: Double, lng: Double, radius: Double) {
+    fun addLocation(name: String, lat: Double, lng: Double, radius: Double,
+                    companyName: String = "", companyAddress: String = "",
+                    companyPhone: String = "", companyEmail: String = "", companyNpwp: String = "") {
         viewModelScope.launch {
             val loc = OfficeLocation(
                 name = name,
                 latitude = lat,
                 longitude = lng,
-                allowedRadiusMeters = radius
+                allowedRadiusMeters = radius,
+                companyName = companyName,
+                companyAddress = companyAddress,
+                companyPhone = companyPhone,
+                companyEmail = companyEmail,
+                companyNpwp = companyNpwp
             )
             repo.add(loc).fold(
                 onSuccess = {
@@ -70,7 +79,9 @@ class OfficeLocationViewModel : ViewModel() {
         }
     }
 
-    fun updateLocation(id: String, name: String, lat: Double, lng: Double, radius: Double, isActive: Boolean) {
+    fun updateLocation(id: String, name: String, lat: Double, lng: Double, radius: Double, isActive: Boolean,
+                       companyName: String = "", companyAddress: String = "",
+                       companyPhone: String = "", companyEmail: String = "", companyNpwp: String = "") {
         viewModelScope.launch {
             val loc = OfficeLocation(
                 id = id,
@@ -78,7 +89,12 @@ class OfficeLocationViewModel : ViewModel() {
                 latitude = lat,
                 longitude = lng,
                 allowedRadiusMeters = radius,
-                isActive = isActive
+                isActive = isActive,
+                companyName = companyName,
+                companyAddress = companyAddress,
+                companyPhone = companyPhone,
+                companyEmail = companyEmail,
+                companyNpwp = companyNpwp
             )
             repo.update(id, loc).fold(
                 onSuccess = {
@@ -135,6 +151,11 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
     var radius by remember { mutableStateOf("100.0") }
     var searchQuery by remember { mutableStateOf("") }
     var searchError by remember { mutableStateOf<String?>(null) }
+    var companyName by remember { mutableStateOf("") }
+    var companyAddress by remember { mutableStateOf("") }
+    var companyPhone by remember { mutableStateOf("") }
+    var companyEmail by remember { mutableStateOf("") }
+    var companyNpwp by remember { mutableStateOf("") }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -167,6 +188,9 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(loc.name, style = MaterialTheme.typography.titleMedium)
+                                    if (loc.companyName.isNotEmpty()) {
+                                        Text(loc.companyName, style = MaterialTheme.typography.bodySmall, color = Blue)
+                                    }
                                     Text("Lat: ${loc.latitude}, Lng: ${loc.longitude}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                                     Text("Radius: ${loc.allowedRadiusMeters}m", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                                 }
@@ -184,6 +208,11 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                                         latitude = loc.latitude.toString()
                                         longitude = loc.longitude.toString()
                                         radius = loc.allowedRadiusMeters.toString()
+                                        companyName = loc.companyName
+                                        companyAddress = loc.companyAddress
+                                        companyPhone = loc.companyPhone
+                                        companyEmail = loc.companyEmail
+                                        companyNpwp = loc.companyNpwp
                                         searchQuery = ""; searchError = null
                                         showDialog = true
                                     },
@@ -222,6 +251,7 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
             onClick = {
                 editingLocation = null
                 name = ""; latitude = ""; longitude = ""; radius = "100.0"; searchQuery = ""; searchError = null
+                companyName = ""; companyAddress = ""; companyPhone = ""; companyEmail = ""; companyNpwp = ""
                 showDialog = true
             },
             modifier = Modifier
@@ -263,8 +293,19 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
             onDismissRequest = { showDialog = false },
             title = { Text(if (isEditing) "Edit Lokasi Kantor" else "Tambah Lokasi Kantor") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Kantor") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text("Profil Perusahaan", style = MaterialTheme.typography.labelMedium, color = Blue)
+                    OutlinedTextField(value = companyName, onValueChange = { companyName = it }, label = { Text("Nama Perusahaan (PT)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = companyAddress, onValueChange = { companyAddress = it }, label = { Text("Alamat Perusahaan") }, singleLine = false, maxLines = 2, modifier = Modifier.fillMaxWidth())
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(value = companyPhone, onValueChange = { companyPhone = it }, label = { Text("Telepon") }, singleLine = true, modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                        OutlinedTextField(value = companyEmail, onValueChange = { companyEmail = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.weight(1f))
+                    }
+                    OutlinedTextField(value = companyNpwp, onValueChange = { companyNpwp = it }, label = { Text("NPWP Perusahaan") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+
+                    HorizontalDivider(color = CardBorder)
+                    Text("Informasi Lokasi", style = MaterialTheme.typography.labelMedium, color = Blue)
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Kantor / Cabang") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text("Cari Lokasi / Pilih di Peta (Tap & Tahan)", style = MaterialTheme.typography.labelMedium)
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -343,12 +384,14 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                     val lng = longitude.toDoubleOrNull() ?: 0.0
                     val rad = radius.toDoubleOrNull() ?: 100.0
                     if (isEditing) {
-                        vm.updateLocation(editingLocation!!.id, name, lat, lng, rad, editingLocation!!.isActive)
+                        vm.updateLocation(editingLocation!!.id, name, lat, lng, rad, editingLocation!!.isActive,
+                            companyName, companyAddress, companyPhone, companyEmail, companyNpwp)
                     } else {
-                        vm.addLocation(name, lat, lng, rad)
+                        vm.addLocation(name, lat, lng, rad, companyName, companyAddress, companyPhone, companyEmail, companyNpwp)
                     }
                     showDialog = false
                     name = ""; latitude = ""; longitude = ""; radius = "100.0"
+                    companyName = ""; companyAddress = ""; companyPhone = ""; companyEmail = ""; companyNpwp = ""
                     editingLocation = null
                 }) {
                     Text(if (isEditing) "Perbarui" else "Simpan")
