@@ -12,7 +12,7 @@ import kotlin.math.sqrt
 /**
  * Wrapper untuk FaceNet TFLite model.
  * Input: Bitmap wajah (112x112 pixel)
- * Output: embedding vector 128 float (face signature)
+ * Output: embedding vector 192 float (face signature)
  */
 class FaceNetModel(context: Context) {
 
@@ -31,7 +31,7 @@ class FaceNetModel(context: Context) {
     }
 
     /**
-     * Extract 128-float embedding dari face bitmap.
+     * Extract 192-float embedding dari face bitmap.
      * Bitmap HARUS sudah di-crop ke area wajah saja (hasil dari ML Kit).
      */
     fun getEmbedding(faceBitmap: Bitmap): FloatArray {
@@ -56,7 +56,7 @@ class FaceNetModel(context: Context) {
         }
 
         // Run inference
-        val output = Array(1) { FloatArray(128) }
+        val output = Array(1) { FloatArray(192) }
         interpreter.run(inputBuffer, output)
 
         // L2 normalize embedding

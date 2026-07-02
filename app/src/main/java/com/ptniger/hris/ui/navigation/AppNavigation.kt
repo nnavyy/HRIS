@@ -57,6 +57,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.CircularProgressIndicator
 import com.ptniger.hris.ui.auth.LoginViewModel
 import androidx.compose.runtime.collectAsState
+import androidx.activity.compose.BackHandler
 
 @Composable
 fun AppNavigation(
@@ -167,6 +168,22 @@ fun MainScaffold(
 ) {
     var faceRegistrationEmployeeId by remember { mutableStateOf("") }
     var faceRegistrationEmployeeName by remember { mutableStateOf("") }
+
+    if (currentRoute != "dashboard") {
+        BackHandler {
+            val hardwareBackRoute = when {
+                currentRoute.startsWith("employee_form_") -> "employees"
+                currentRoute.startsWith("employee_detail_") -> "employees"
+                currentRoute == "face_registration" -> "employees"
+                currentRoute == "face_registration_self" -> "profile"
+                currentRoute == "contract_form" -> { onSetNavigationEmployee(null); "dashboard" }
+                currentRoute == "edit_profile" -> "profile"
+                currentRoute == "peer_review" -> "kpi_result"
+                else -> "dashboard"
+            }
+            onNavigate(hardwareBackRoute)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
