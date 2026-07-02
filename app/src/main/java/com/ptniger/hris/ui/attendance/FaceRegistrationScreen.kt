@@ -72,8 +72,6 @@ fun FaceRegistrationScreen(
         val emp = employeeRepo.getById(employeeId)
         if (emp?.isFaceRegistered == true) {
             isAlreadyRegistered = true
-            message = "Wajah karyawan ini sudah terdaftar."
-            detectionState = FaceDetectionState.REGISTERED
         }
     }
     
@@ -268,7 +266,6 @@ fun FaceRegistrationScreen(
 
             Text(
                 when {
-                    isAlreadyRegistered -> "Wajah karyawan ini sudah terdaftar di sistem."
                     message.isNotEmpty() -> message
                     detectionState == FaceDetectionState.DETECTED && blinkDetected ->
                         "✓ Wajah terdeteksi ($pose) & liveness OK"
@@ -277,7 +274,8 @@ fun FaceRegistrationScreen(
                     else -> {
                         val nameParts = employeeName.split(" ")
                         val firstName = if (nameParts.isNotEmpty()) nameParts[0] else employeeName
-                        "Arahkan wajah $firstName ke dalam kotak"
+                        val statusText = if (isAlreadyRegistered) "\n(Wajah Anda sudah terdaftar, arahkan wajah untuk mengubahnya)" else ""
+                        "Arahkan wajah $firstName ke dalam kotak$statusText"
                     }
                 },
                 color = Color.White,
@@ -328,7 +326,7 @@ fun FaceRegistrationScreen(
                         }
                     }
                 },
-                enabled = !isAlreadyRegistered && detectionState == FaceDetectionState.DETECTED && blinkDetected && !isRegistering,
+                enabled = detectionState == FaceDetectionState.DETECTED && blinkDetected && !isRegistering,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -342,7 +340,7 @@ fun FaceRegistrationScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("Menyimpan...")
                 } else {
-                    Text(if (isAlreadyRegistered) "Wajah Telah Terdaftar" else "Tangkap & Daftarkan", style = MaterialTheme.typography.labelLarge)
+                    Text(if (isAlreadyRegistered) "Ubah Wajah Absensi" else "Daftarkan Wajah Absensi", style = MaterialTheme.typography.labelLarge)
                 }
             }
             TextButton(onClick = onBack) {
