@@ -142,6 +142,7 @@ fun ManagerDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.loadAdminDashboard() }
@@ -174,8 +175,6 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
         }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Lokasi Kantor (GPS Absensi)", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Pengaturan Sistem (API Key)", Icons.Default.Settings, TealSoft, Teal) { onNavigate("app_config") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
         Spacer(Modifier.height(8.dp))
@@ -262,19 +261,64 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
         // Hapus Collection (Dev Mode)
         var collectionToDelete by remember { mutableStateOf("") }
         var deleteMessage by remember { mutableStateOf<String?>(null) }
+        var isDeleteDropdownExpanded by remember { mutableStateOf(false) }
         val coroutineScope = rememberCoroutineScope()
+
+        val collectionOptions = listOf(
+            "attendance" to "Attendance (Absensi)",
+            "employees" to "Employees (Karyawan)",
+            "payrolls" to "Payrolls (Slip Gaji)",
+            "kpi_configs" to "KPI Configs",
+            "kpi_scores" to "KPI Scores",
+            "peer_reviews" to "Peer Reviews",
+            "ai_reviews" to "AI Reviews",
+            "leave_requests" to "Leave Requests (Cuti)",
+            "employee_contracts" to "Employee Contracts",
+            "office_locations" to "Office Locations",
+            "work_schedules" to "Work Schedules",
+            "leave_policies" to "Leave Policies",
+            "notifications" to "Notifications",
+            "audit_logs" to "Audit Logs",
+            "automation_rules" to "Automation Rules",
+            "app_configs" to "App Configs"
+        )
         
         Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp) {
             Column(Modifier.padding(16.dp)) {
                 Text("Hapus Collection (Dev Mode)", style = MaterialTheme.typography.titleSmall, color = Red)
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = collectionToDelete, onValueChange = { collectionToDelete = it; deleteMessage = null },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    label = { Text("Nama Collection") }
-                )
+                
+                // Dropdown picker
+                ExposedDropdownMenuBox(
+                    expanded = isDeleteDropdownExpanded,
+                    onExpandedChange = { isDeleteDropdownExpanded = !isDeleteDropdownExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = collectionOptions.find { it.first == collectionToDelete }?.second ?: "Pilih modul...",
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(12.dp),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDeleteDropdownExpanded) },
+                        label = { Text("Pilih Collection") }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = isDeleteDropdownExpanded,
+                        onDismissRequest = { isDeleteDropdownExpanded = false }
+                    ) {
+                        collectionOptions.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    collectionToDelete = key
+                                    isDeleteDropdownExpanded = false
+                                    deleteMessage = null
+                                }
+                            )
+                        }
+                    }
+                }
+                
                 Spacer(Modifier.height(8.dp))
                 if (deleteMessage != null) {
                     Text(deleteMessage!!, color = if (deleteMessage!!.contains("berhasil", ignoreCase = true)) Green else Red, style = MaterialTheme.typography.bodySmall)

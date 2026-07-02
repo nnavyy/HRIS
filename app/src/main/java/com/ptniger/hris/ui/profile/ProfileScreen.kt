@@ -23,10 +23,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -61,9 +63,11 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, onEditProfile: () -> Unit, o
         }
     }
 
-    var isFaceRegistered by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var isFaceRegistered by remember { mutableStateOf(false) }
+    var faceCooldownDaysLeft by remember { mutableStateOf(0) }
+    var isFaceCooldownActive by remember { mutableStateOf(false) }
 
-    androidx.compose.runtime.DisposableEffect(user.userId) {
+    DisposableEffect(user.userId) {
         val empId = user.employeeId.ifEmpty { user.userId }
         val listener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             .collection(com.ptniger.hris.utils.Constants.Collections.EMPLOYEES)
@@ -71,6 +75,14 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, onEditProfile: () -> Unit, o
             .addSnapshotListener { snapshot, error ->
                 if (error == null && snapshot != null && snapshot.exists()) {
                     isFaceRegistered = snapshot.getBoolean("isFaceRegistered") == true
+                    val registeredAt = snapshot.getLong("faceRegisteredAt") ?: 0L
+                    if (isFaceRegistered && registeredAt > 0) {
+                        val daysSince = (System.currentTimeMillis() - registeredAt) / (1000L * 60 * 60 * 24)
+                        isFaceCooldownActive = daysSince < 30
+                        faceCooldownDaysLeft = if (isFaceCooldownActive) (30 - daysSince).toInt() else 0
+                    } else {
+                        isFaceCooldownActive = false
+                    }
                 }
             }
         onDispose {
@@ -179,15 +191,31 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, onEditProfile: () -> Unit, o
 
         Spacer(Modifier.height(16.dp))
 
+        // Face registration cooldown check
+        val userRole = user.primaryRole.ifEmpty { user.role }.lowercase()
+        val canBypassFaceCooldown = userRole in listOf("hr", "admin", "superadmin")
+
         Button(
             onClick = onNavigateToFaceRegistration,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(52.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = if (isFaceRegistered) Blue else Green)
+            enabled = !isFaceCooldownActive || canBypassFaceCooldown || !isFaceRegistered,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isFaceRegistered) Blue else Green,
+                disabledContainerColor = Color.Gray
+            )
         ) { 
             Icon(Icons.Default.Face, null, Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text(if (isFaceRegistered) "Ubah Wajah Absensi" else "Daftarkan Wajah Absensi", color = Color.White) 
+        }
+        if (isFaceCooldownActive && isFaceRegistered && !canBypassFaceCooldown) {
+            Text(
+                "⏳ Bisa diubah lagi dalam $faceCooldownDaysLeft hari. Hubungi HR untuk perubahan mendesak.",
+                modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
         }
 
         Spacer(Modifier.height(24.dp))

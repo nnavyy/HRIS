@@ -67,6 +67,9 @@ fun FaceRegistrationScreen(
     
     val employeeRepo = remember { EmployeeRepository() }
     var isAlreadyRegistered by remember { mutableStateOf(false) }
+    var faceRegisteredAt by remember { mutableStateOf(0L) }
+    var isCooldownActive by remember { mutableStateOf(false) }
+    var cooldownDaysLeft by remember { mutableStateOf(0) }
 
     DisposableEffect(employeeId) {
         val listener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -75,6 +78,21 @@ fun FaceRegistrationScreen(
             .addSnapshotListener { snapshot, error ->
                 if (error == null && snapshot != null && snapshot.exists()) {
                     isAlreadyRegistered = snapshot.getBoolean("isFaceRegistered") == true
+                    faceRegisteredAt = snapshot.getLong("faceRegisteredAt") ?: 0L
+                    
+                    // Check 30-day cooldown (only if already registered)
+                    if (isAlreadyRegistered && faceRegisteredAt > 0) {
+                        val daysSinceRegistration = (System.currentTimeMillis() - faceRegisteredAt) / (1000L * 60 * 60 * 24)
+                        if (daysSinceRegistration < 30) {
+                            isCooldownActive = true
+                            cooldownDaysLeft = (30 - daysSinceRegistration).toInt()
+                        } else {
+                            isCooldownActive = false
+                            cooldownDaysLeft = 0
+                        }
+                    } else {
+                        isCooldownActive = false
+                    }
                 }
             }
         onDispose {
@@ -290,6 +308,33 @@ fun FaceRegistrationScreen(
                 textAlign = TextAlign.Center
             )
 
+            // Check if user role allows bypass (HR, admin, superadmin)
+            val userRole = user.primaryRole.ifEmpty { user.role }.lowercase()
+            val canBypassCooldown = userRole in listOf("hr", "admin", "superadmin")
+
+            // Cooldown warning
+            if (isCooldownActive && !canBypassCooldown) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0x33FF6B6B)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            "⚠️ Perubahan wajah dibatasi 1x per bulan",
+                            color = Color(0xFFFF6B6B),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                        Text(
+                            "Anda baru bisa mengubah wajah dalam $cooldownDaysLeft hari lagi. Hubungi HR/Admin untuk perubahan di luar jadwal.",
+                            color = Color.White.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
             Button(
                 onClick = {
                     val bmp = latestBitmap
@@ -333,7 +378,7 @@ fun FaceRegistrationScreen(
                         }
                     }
                 },
-                enabled = detectionState == FaceDetectionState.DETECTED && blinkDetected && !isRegistering,
+                enabled = detectionState == FaceDetectionState.DETECTED && blinkDetected && !isRegistering && (!isCooldownActive || canBypassCooldown),
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
