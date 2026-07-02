@@ -265,6 +265,7 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
         val coroutineScope = rememberCoroutineScope()
 
         val collectionOptions = listOf(
+            "users" to "Users (Akun Login)",
             "attendance" to "Attendance (Absensi)",
             "employees" to "Employees (Karyawan)",
             "payrolls" to "Payrolls (Slip Gaji)",
@@ -336,10 +337,19 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
                                     if (snapshot.isEmpty) {
                                         deleteMessage = "Tidak menemukan \"$colName\" atau sudah kosong."
                                     } else {
+                                        val preservedEmails = listOf(
+                                            "akungweh54@gmail.com",
+                                            "nandazhafran@gmail.com",
+                                            "driveperson69420@gmail.com",
+                                            "akunsayananda0@gmail.com"
+                                        )
                                         for (doc in snapshot.documents) {
+                                            if ((colName == "users" || colName == "employees") && preservedEmails.contains(doc.getString("email"))) {
+                                                continue
+                                            }
                                             doc.reference.delete().await()
                                         }
-                                        deleteMessage = "Data collection \"$colName\" berhasil dihapus."
+                                        deleteMessage = "Data collection \"$colName\" berhasil dihapus (kecuali akun inti)."
                                     }
                                 } catch (e: Exception) {
                                     deleteMessage = "Gagal menghapus: ${e.message}"
