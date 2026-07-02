@@ -59,6 +59,23 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, onEditProfile: () -> Unit, o
         }
     }
 
+    var isFaceRegistered by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    androidx.compose.runtime.DisposableEffect(user.userId) {
+        val empId = user.employeeId.ifEmpty { user.userId }
+        val listener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            .collection(com.ptniger.hris.utils.Constants.Collections.EMPLOYEES)
+            .document(empId)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    isFaceRegistered = snapshot.getBoolean("isFaceRegistered") == true
+                }
+            }
+        onDispose {
+            listener.remove()
+        }
+    }
+
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -164,11 +181,11 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, onEditProfile: () -> Unit, o
             onClick = onNavigateToFaceRegistration,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(52.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Green)
+            colors = ButtonDefaults.buttonColors(containerColor = if (isFaceRegistered) Blue else Green)
         ) { 
             Icon(Icons.Default.Face, null, Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Daftarkan Wajah Absensi", color = Color.White) 
+            Text(if (isFaceRegistered) "Ubah Wajah Absensi" else "Daftarkan Wajah Absensi", color = Color.White) 
         }
 
         Spacer(Modifier.height(24.dp))
