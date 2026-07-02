@@ -327,6 +327,7 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                                                 latitude = loc.latitude.toString()
                                                 longitude = loc.longitude.toString()
                                                 searchError = null
+                                                loc.getAddressLine(0)?.let { companyAddress = it }
                                             } else {
                                                 searchError = "Lokasi tidak ditemukan"
                                             }
@@ -349,6 +350,7 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                                             latitude = loc.latitude.toString()
                                             longitude = loc.longitude.toString()
                                             searchError = null
+                                            loc.getAddressLine(0)?.let { companyAddress = it }
                                         } else {
                                             searchError = "Tidak ditemukan"
                                         }
@@ -372,6 +374,17 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                         onLocationSelected = { lat, lng ->
                             latitude = lat.toString()
                             longitude = lng.toString()
+                            coroutineScope.launch {
+                                try {
+                                    val geocoder = Geocoder(context)
+                                    val results = withContext(Dispatchers.IO) { geocoder.getFromLocation(lat, lng, 1) }
+                                    if (!results.isNullOrEmpty()) {
+                                        results[0].getAddressLine(0)?.let { companyAddress = it }
+                                    }
+                                } catch (e: Exception) {
+                                    // Silently fail if reverse geocoding is unavailable
+                                }
+                            }
                         }
                     )
                     Text("Lat: ${latitude.take(12)}, Lng: ${longitude.take(13)}", style = MaterialTheme.typography.bodySmall)
