@@ -126,19 +126,19 @@ class EmployeeRepository {
             if (faceImageUrl != null) {
                 updateMap["faceImageUrl"] = faceImageUrl
             }
-            col.document(employeeId).update(updateMap).await()
+            col.document(employeeId).set(updateMap, com.google.firebase.firestore.SetOptions.merge()).await()
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
 
     suspend fun clearFaceEmbedding(employeeId: String): Result<Unit> {
         return try {
-            col.document(employeeId).update(
+            col.document(employeeId).set(
                 mapOf(
                     "faceEmbedding"    to emptyList<Float>(),
                     "isFaceRegistered" to false,
                     "faceRegisteredAt" to 0L
-                )
+                ), com.google.firebase.firestore.SetOptions.merge()
             ).await()
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
