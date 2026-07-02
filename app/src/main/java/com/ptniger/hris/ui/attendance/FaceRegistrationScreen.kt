@@ -68,17 +68,18 @@ fun FaceRegistrationScreen(
     val employeeRepo = remember { EmployeeRepository() }
     var isAlreadyRegistered by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        try {
-            val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                .collection(com.ptniger.hris.utils.Constants.Collections.EMPLOYEES)
-                .document(employeeId)
-                .get()
-                .await()
-            if (doc.exists() && doc.getBoolean("isFaceRegistered") == true) {
-                isAlreadyRegistered = true
+    DisposableEffect(employeeId) {
+        val listener = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            .collection(com.ptniger.hris.utils.Constants.Collections.EMPLOYEES)
+            .document(employeeId)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null && snapshot.exists()) {
+                    isAlreadyRegistered = snapshot.getBoolean("isFaceRegistered") == true
+                }
             }
-        } catch (e: Exception) { }
+        onDispose {
+            listener.remove()
+        }
     }
     
     LaunchedEffect(Unit) {
