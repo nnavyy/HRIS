@@ -41,8 +41,9 @@ service cloud.firestore {
     // --- EMPLOYEES ---
     match /employees/{employeeId} {
       allow read: if isLoggedIn();
-      allow create: if isSuperAdmin() || isHR();
+      allow create: if isSuperAdmin() || isHR() || (isLoggedIn() && request.auth.uid == employeeId);
       allow update: if isSuperAdmin() || isHR() || isManager()
+                    || (isLoggedIn() && request.auth.uid == employeeId)
                     || (isLoggedIn() && request.auth.uid == resource.data.userId);
       allow delete: if isSuperAdmin() || isHR();
     }
