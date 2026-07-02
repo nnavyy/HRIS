@@ -198,7 +198,7 @@ fun MainScaffold(
                     "leave_approval" -> LeaveApprovalScreen(user = user, onBack = { onNavigate("dashboard") })
                     "leave_request" -> LeaveRequestScreen(user = user)
                     "attendance" -> AttendanceScreen(user = user)
-                    "attendance_monitor" -> AttendanceMonitorScreen(user = user, onBack = { onNavigate("dashboard") })
+                    "attendance_monitor" -> AttendanceMonitorScreen(user = user, onBack = { onNavigate("dashboard") }, onNavigateToProfile = { onNavigateToDetail("employee_detail_$it") })
                     "kpi_config" -> KpiConfigScreen(user = user, onBack = { onNavigate("dashboard") })
                     "kpi_scoring" -> KpiScoringScreen(user = user, onBack = { onNavigate("dashboard") })
                     "kpi_result" -> KpiResultScreen(user = user, onBack = { onNavigate("dashboard") })

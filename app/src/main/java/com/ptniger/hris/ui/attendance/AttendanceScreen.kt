@@ -306,7 +306,12 @@ fun AttendanceScreen(user: User, vm: AttendanceViewModel = viewModel()) {
 }
 
 @Composable
-fun AttendanceMonitorScreen(user: User, onBack: () -> Unit = {}, vm: AttendanceViewModel = viewModel()) {
+fun AttendanceMonitorScreen(
+    user: User, 
+    onBack: () -> Unit = {}, 
+    onNavigateToProfile: (String) -> Unit = {},
+    vm: AttendanceViewModel = viewModel()
+) {
     LaunchedEffect(Unit) {
         val isManager = user.primaryRole == com.ptniger.hris.utils.Constants.Role.MANAGER || user.role == com.ptniger.hris.utils.Constants.Role.MANAGER
         if (isManager) {
@@ -374,8 +379,9 @@ fun AttendanceMonitorScreen(user: User, onBack: () -> Unit = {}, vm: AttendanceV
         } else {
             state.todayList.forEach { att ->
                 val isLate = att.attendanceStatus == "late"
+                val empName = state.employeeNames[att.employeeId] ?: att.employeeId
                 Surface(
-                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp).clickable { onNavigateToProfile(att.employeeId) },
                     shape = RoundedCornerShape(18.dp),
                     color = com.ptniger.hris.ui.theme.Surface,
                     shadowElevation = 1.dp
@@ -387,7 +393,7 @@ fun AttendanceMonitorScreen(user: User, onBack: () -> Unit = {}, vm: AttendanceV
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                att.employeeId.take(2).uppercase(),
+                                empName.take(2).uppercase(),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = if (isLate) com.ptniger.hris.ui.theme.Orange else com.ptniger.hris.ui.theme.Green
                             )
@@ -395,7 +401,7 @@ fun AttendanceMonitorScreen(user: User, onBack: () -> Unit = {}, vm: AttendanceV
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "ID: ${att.employeeId}",
+                                empName,
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Text(

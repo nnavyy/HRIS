@@ -189,16 +189,20 @@ class AttendanceViewModel : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             var list = repo.getAllToday()
+            val empRepo = com.ptniger.hris.data.repository.EmployeeRepository()
+            val allEmps = empRepo.getAll()
+            
+            // Map employeeId to Name
+            val namesMap = allEmps.associate { it.employeeId to it.name }
+            
             if (userId.isNotEmpty() || departmentId.isNotEmpty()) {
-                val empRepo = com.ptniger.hris.data.repository.EmployeeRepository()
-                val allEmps = empRepo.getAll()
                 val teamIds = allEmps.filter {
                     it.managerId == userId || (departmentId.isNotEmpty() && it.department.equals(departmentId, ignoreCase = true))
                 }.map { it.employeeId }.toSet()
                 
                 list = list.filter { it.employeeId in teamIds }
             }
-            _state.value = _state.value.copy(todayList = list, isLoading = false)
+            _state.value = _state.value.copy(todayList = list, employeeNames = namesMap, isLoading = false)
         }
     }
 
@@ -247,5 +251,6 @@ data class AttendanceState(
     val monthlyCalendar: List<Pair<Int, String>> = emptyList(),
     val todayList: List<Attendance> = emptyList(),
     val resolvedEmployeeId: String = "",
-    val isFaceRegistered: Boolean = false
+    val isFaceRegistered: Boolean = false,
+    val employeeNames: Map<String, String> = emptyMap()
 )
