@@ -118,18 +118,28 @@ class AttendanceViewModel : ViewModel() {
                     employee = employeeRepo.getByEmail(userEmail)
                 }
                 
-                val office = if (employee?.officeId?.isNotEmpty() == true) {
-                    officeRepo.getById(employee.officeId)
-                } else if (employee == null) {
+                var office: com.ptniger.hris.data.model.OfficeLocation? = null
+                if (employee?.officeId?.isNotEmpty() == true) {
+                    office = officeRepo.getById(employee.officeId)
+                }
+                
+                if (employee == null) {
                     _state.value = _state.value.copy(message = "Akun Anda belum dihubungkan dengan data Karyawan. Hubungi HR untuk Integrasi Akun Sistem.", isLoading = false)
                     return@launch
-                } else {
-                    val allOffices = officeRepo.getAll().filter { it.isActive }
-                    if (allOffices.size == 1) allOffices.first() else null
                 }
 
                 if (office == null) {
-                    _state.value = _state.value.copy(message = "Absensi gagal: Lokasi kantor belum ditetapkan di profil Anda.", isLoading = false)
+                    val allOffices = officeRepo.getAll().filter { it.isActive }
+                    if (allOffices.size == 1) {
+                        office = allOffices.first()
+                    } else if (allOffices.isEmpty()) {
+                        _state.value = _state.value.copy(message = "Absensi gagal: Tidak ada lokasi kantor aktif di sistem. Harap tambahkan Lokasi Kantor terlebih dahulu.", isLoading = false)
+                        return@launch
+                    }
+                }
+
+                if (office == null) {
+                    _state.value = _state.value.copy(message = "Absensi gagal: Lokasi kantor belum ditetapkan di profil Anda. Hubungi HR.", isLoading = false)
                     return@launch
                 }
 
