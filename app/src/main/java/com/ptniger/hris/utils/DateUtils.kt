@@ -108,13 +108,15 @@ object DateUtils {
      */
     suspend fun getServerTimeMillis(): Long {
         return try {
-            val db = FirebaseFirestore.getInstance()
-            val tempRef = db.collection("_server_time_check").document("probe")
-            tempRef.set(mapOf("ts" to com.google.firebase.firestore.FieldValue.serverTimestamp())).await()
-            val doc = tempRef.get(com.google.firebase.firestore.Source.SERVER).await()
-            val serverTs = doc.getTimestamp("ts")
-            tempRef.delete().await() // cleanup
-            serverTs?.toDate()?.time ?: System.currentTimeMillis()
+            kotlinx.coroutines.withTimeout(3000L) {
+                val db = FirebaseFirestore.getInstance()
+                val tempRef = db.collection("_server_time_check").document("probe")
+                tempRef.set(mapOf("ts" to com.google.firebase.firestore.FieldValue.serverTimestamp())).await()
+                val doc = tempRef.get(com.google.firebase.firestore.Source.SERVER).await()
+                val serverTs = doc.getTimestamp("ts")
+                tempRef.delete().await() // cleanup
+                serverTs?.toDate()?.time ?: throw Exception("No TS")
+            }
         } catch (e: Exception) {
             try {
                 var serverTimeMs = System.currentTimeMillis()
@@ -140,21 +142,11 @@ object DateUtils {
         }
     }
 
-    /**
-     * Returns formatted time string from server time.
-     */
-    suspend fun serverNowTime(): String {
-        val serverMillis = getServerTimeMillis()
-        return timeFormat.format(Date(serverMillis))
-    }
+    fun formatTime(timestamp: Long): String = timeFormat.format(Date(timestamp))
+    fun formatDate(timestamp: Long): String = dateFormat.format(Date(timestamp))
 
-    /**
-     * Returns formatted date string from server time.
-     */
-    suspend fun serverToday(): String {
-        val serverMillis = getServerTimeMillis()
-        return dateFormat.format(Date(serverMillis))
-    }
+    suspend fun serverNowTime(): String = formatTime(getServerTimeMillis())
+    suspend fun serverToday(): String = formatDate(getServerTimeMillis())
 
     /**
      * Checks if there's a significant time difference between device and server.

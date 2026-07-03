@@ -161,10 +161,10 @@ class AttendanceViewModel : ViewModel() {
                 }
 
                 // Use SERVER time instead of device time to prevent clock manipulation
-                val serverTime = DateUtils.serverNowTime()
-                val serverDate = DateUtils.serverToday()
-                val deviceTime = System.currentTimeMillis()
                 val serverTimeMs = DateUtils.getServerTimeMillis()
+                val serverTime = DateUtils.formatTime(serverTimeMs)
+                val serverDate = DateUtils.formatDate(serverTimeMs)
+                val deviceTime = System.currentTimeMillis()
                 val timeDiffMs = Math.abs(deviceTime - serverTimeMs)
                 val isTimeTampered = timeDiffMs > 2 * 60 * 1000 // > 2 minutes difference
 

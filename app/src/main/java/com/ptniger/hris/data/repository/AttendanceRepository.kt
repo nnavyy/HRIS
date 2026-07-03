@@ -39,14 +39,15 @@ class AttendanceRepository {
             
             try {
                 val inputStream = context.contentResolver.openInputStream(imageUri)
-                val bytes = inputStream?.readBytes() ?: throw Exception("Tidak bisa membaca gambar selfie")
-                inputStream.close()
-                
-                // Validate file size < 3MB before uploading
-                val maxSizeBytes = 3 * 1024 * 1024
-                if (bytes.size > maxSizeBytes) {
-                    throw Exception("Ukuran foto selfie terlalu besar (maks. 3MB). Coba foto ulang dengan resolusi lebih rendah.")
-                }
+                val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+                if (originalBitmap == null) throw Exception("Tidak bisa membaca gambar selfie")
+
+                // Compress image to reduce size and prevent network timeouts
+                val outputStream = java.io.ByteArrayOutputStream()
+                originalBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, outputStream)
+                val bytes = outputStream.toByteArray()
+                originalBitmap.recycle()
                 
                 val today = DateUtils.serverToday()
                 val timestamp = System.currentTimeMillis()
