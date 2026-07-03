@@ -116,7 +116,27 @@ object DateUtils {
             tempRef.delete().await() // cleanup
             serverTs?.toDate()?.time ?: System.currentTimeMillis()
         } catch (e: Exception) {
-            System.currentTimeMillis()
+            try {
+                var serverTimeMs = System.currentTimeMillis()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val url = java.net.URL("https://www.google.com")
+                    val conn = url.openConnection() as java.net.HttpURLConnection
+                    conn.requestMethod = "HEAD"
+                    conn.connectTimeout = 2000
+                    conn.readTimeout = 2000
+                    conn.connect()
+                    val dateHeader = conn.getHeaderField("Date")
+                    if (dateHeader != null) {
+                        val format = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", java.util.Locale.US)
+                        format.timeZone = java.util.TimeZone.getTimeZone("GMT")
+                        format.parse(dateHeader)?.let { serverTimeMs = it.time }
+                    }
+                    conn.disconnect()
+                }
+                serverTimeMs
+            } catch (ex: Exception) {
+                System.currentTimeMillis()
+            }
         }
     }
 
