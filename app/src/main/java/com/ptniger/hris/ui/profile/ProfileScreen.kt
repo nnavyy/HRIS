@@ -211,7 +211,7 @@ fun ProfileScreen(user: User, onLogout: () -> Unit, onEditProfile: () -> Unit, o
         }
         if (isFaceCooldownActive && isFaceRegistered && !canBypassFaceCooldown) {
             Text(
-                "⏳ Bisa diubah lagi dalam $faceCooldownDaysLeft hari. Hubungi HR untuk perubahan mendesak.",
+                "Bisa diubah lagi dalam $faceCooldownDaysLeft hari. Hubungi HR untuk perubahan mendesak.",
                 modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
