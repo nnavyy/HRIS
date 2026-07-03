@@ -127,17 +127,15 @@ object DateUtils {
                     conn.connectTimeout = 2000
                     conn.readTimeout = 2000
                     conn.connect()
-                    val dateHeader = conn.getHeaderField("Date")
-                    if (dateHeader != null) {
-                        val format = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", java.util.Locale.US)
-                        format.timeZone = java.util.TimeZone.getTimeZone("GMT")
-                        format.parse(dateHeader)?.let { serverTimeMs = it.time }
+                    val date = conn.date
+                    if (date > 0) {
+                        serverTimeMs = date
                     }
                     conn.disconnect()
                 }
                 serverTimeMs
             } catch (ex: Exception) {
-                System.currentTimeMillis()
+                throw Exception("Gagal sinkronisasi waktu dengan server. Pastikan koneksi internet aktif dan stabil.")
             }
         }
     }
