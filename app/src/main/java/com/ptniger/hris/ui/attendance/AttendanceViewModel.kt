@@ -130,18 +130,26 @@ class AttendanceViewModel : ViewModel() {
 
                 if (office == null) {
                     val allOffices = officeRepo.getAll().filter { it.isActive }
-                    if (allOffices.size == 1) {
-                        office = allOffices.first()
-                    } else if (allOffices.isEmpty()) {
+                    if (allOffices.isNotEmpty()) {
+                        // Fallback: Cari kantor terdekat dari lokasi pengguna saat ini
+                        var closestOffice = allOffices.first()
+                        var minDistance = Float.MAX_VALUE
+                        for (o in allOffices) {
+                            val results = FloatArray(1)
+                            android.location.Location.distanceBetween(latitude, longitude, o.latitude, o.longitude, results)
+                            if (results[0] < minDistance) {
+                                minDistance = results[0]
+                                closestOffice = o
+                            }
+                        }
+                        office = closestOffice
+                    } else {
                         _state.value = _state.value.copy(message = "Absensi gagal: Tidak ada lokasi kantor aktif di sistem. Harap tambahkan Lokasi Kantor terlebih dahulu.", isLoading = false)
                         return@launch
                     }
                 }
 
-                if (office == null) {
-                    _state.value = _state.value.copy(message = "Absensi gagal: Lokasi kantor belum ditetapkan di profil Anda. Hubungi HR.", isLoading = false)
-                    return@launch
-                }
+
 
                 val results = FloatArray(1)
                 android.location.Location.distanceBetween(latitude, longitude, office.latitude, office.longitude, results)
