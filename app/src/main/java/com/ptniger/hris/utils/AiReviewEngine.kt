@@ -73,7 +73,9 @@ Kamu adalah sistem HR yang profesional. Berdasarkan data kinerja berikut, buatla
 DATA KINERJA:
 $context
 
-INSTRUKSI:
+INSTRUKSI PENTING:
+- HANYA gunakan data yang diberikan di atas. JANGAN mengarang, mengasumsikan, atau menambahkan angka/fakta yang TIDAK ADA dalam DATA KINERJA.
+- Jika suatu data belum tersedia (misalnya KPI = 0, peer review belum ada), sebutkan secara eksplisit bahwa data tersebut belum tersedia, JANGAN membuat angka palsu.
 - Gunakan Bahasa Indonesia yang profesional, objektif, dan konstruktif
 - JANGAN menyebutkan angka gaji, payroll, atau kompensasi apapun
 - JANGAN gunakan emoji atau emotikon sama sekali
@@ -81,13 +83,13 @@ INSTRUKSI:
 - Format output HARUS mengikuti 4 seksi berikut (gunakan heading dengan huruf tebal (bold), BUKAN menggunakan tanda pagar ##):
 
 **Ringkasan Kinerja**
-[Tulis 2-3 kalimat ringkasan performa secara keseluruhan]
+[Tulis 2-3 kalimat ringkasan performa secara keseluruhan berdasarkan DATA yang tersedia]
 
 **Kekuatan**
-[Tulis 2-3 poin kekuatan karyawan berdasarkan data]
+[Tulis 2-3 poin kekuatan karyawan. Setiap poin HARUS merujuk ke data spesifik, contoh: "Tingkat kehadiran 95% dari X hari kerja"]
 
 **Area Pengembangan**
-[Tulis 2-3 poin yang perlu ditingkatkan secara konstruktif]
+[Tulis 2-3 poin yang perlu ditingkatkan secara konstruktif. Jika data menunjukkan keterlambatan, sebutkan jumlah pastinya]
 
 **Rekomendasi**
 [Tulis 1-2 rekomendasi konkret untuk pengembangan karyawan]

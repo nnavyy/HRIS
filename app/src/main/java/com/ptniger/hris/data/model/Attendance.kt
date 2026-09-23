@@ -27,6 +27,7 @@ data class Attendance(
     
     // Anti-Fraud Detection
     val isMockLocation: Boolean = false,
+    val weatherCheckResult: String = "",    // "CONSISTENT" | "SLIGHTLY_OFF" | "SUSPICIOUS" | "UNAVAILABLE"
     val serverTimestamp: Long = 0,
     val isTimeTampered: Boolean = false,
     val deviceTimestamp: Long = 0,

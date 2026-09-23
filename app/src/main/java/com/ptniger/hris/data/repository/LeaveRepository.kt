@@ -165,16 +165,24 @@ class LeaveRepository {
 
     suspend fun getPendingForApprover(
         currentUserEmployeeId: String,
-        currentRole: String
+        currentRole: String,
+        managerUserId: String = "",
+        departmentId: String = "",
+        subordinateIds: Set<String> = emptySet()
     ): List<LeaveRequest> {
         return try {
             when (currentRole) {
                 Constants.Role.MANAGER -> {
-                    col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
-                        .whereEqualTo("managerId", currentUserEmployeeId)
+                    val allPending = col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
                         .get().await().documents.mapNotNull {
                             it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
-                        }.sortedByDescending { it.createdAt }
+                        }
+                    allPending.filter { req ->
+                        (subordinateIds.isNotEmpty() && req.employeeId in subordinateIds) ||
+                        (currentUserEmployeeId.isNotEmpty() && req.managerId.equals(currentUserEmployeeId, ignoreCase = true)) ||
+                        (managerUserId.isNotEmpty() && req.managerId.equals(managerUserId, ignoreCase = true)) ||
+                        (departmentId.isNotEmpty() && req.departmentId.equals(departmentId, ignoreCase = true))
+                    }.sortedByDescending { it.createdAt }
                 }
                 Constants.Role.HR -> {
                     val managerLeaves = col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
@@ -266,15 +274,37 @@ class LeaveRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun reject(leaveId: String, approvedBy: String): Result<Unit> {
+    suspend fun reject(leaveId: String, approvedBy: String, reason: String = ""): Result<Unit> {
         return try {
-            col.document(leaveId).update(
-                mapOf("status" to Constants.LeaveStatus.REJECTED, "approvedBy" to approvedBy)
-            ).await()
+            val leaveDoc = col.document(leaveId).get().await()
+            val leave = leaveDoc.toObject(LeaveRequest::class.java)
+            val prevStatus = leave?.status ?: ""
+
+            val updates = mutableMapOf<String, Any>(
+                "status" to Constants.LeaveStatus.REJECTED,
+                "approvedBy" to approvedBy
+            )
+            if (reason.isNotEmpty()) {
+                updates["rejectionReason"] = reason
+            }
+            col.document(leaveId).update(updates).await()
+
+            // Refund Kuota Cuti jika sebelumnya PENDING dan jenis cuti memotong kuota
+            if (prevStatus == Constants.LeaveStatus.PENDING && leave != null && leave.duration > 0) {
+                val policy = LeavePolicyRepository().getActivePolicy()
+                val isEmergency = policy.emergencyLeaveTypes.contains(leave.type)
+                if (!isEmergency) {
+                    val employee = employeeRepo.getByUserId(leave.employeeId)
+                        ?: employeeRepo.getById(leave.employeeId)
+                    if (employee != null && employee.employeeId.isNotEmpty()) {
+                        val refunded = employee.leaveQuota + leave.duration
+                        employeeRepo.updateLeaveQuota(employee.employeeId, refunded)
+                    }
+                }
+            }
             
             // Email ke karyawan (fire and forget)
             try {
-                val leave = col.document(leaveId).get().await().toObject(LeaveRequest::class.java)
                 val employee = leave?.let {
                     employeeRepo.getByUserId(it.employeeId) ?: employeeRepo.getById(it.employeeId)
                 }
@@ -292,7 +322,7 @@ class LeaveRepository {
                     userId = approvedBy, userName = approvedBy,
                     action = "LEAVE_REJECTED", module = "Leave",
                     targetCollection = Constants.Collections.LEAVE_REQUESTS, targetId = leaveId,
-                    details = "Rejected by $approvedBy"
+                    details = "Rejected by $approvedBy. Reason: $reason"
                 )
             }
             
@@ -302,6 +332,10 @@ class LeaveRepository {
 
     suspend fun rejectWithReason(leaveId: String, approvedBy: String, reason: String): Result<Unit> {
         return try {
+            val leaveDoc = col.document(leaveId).get().await()
+            val leave = leaveDoc.toObject(LeaveRequest::class.java)
+            val prevStatus = leave?.status ?: ""
+
             col.document(leaveId).update(
                 mapOf(
                     "status" to Constants.LeaveStatus.REJECTED,
@@ -310,6 +344,21 @@ class LeaveRepository {
                     "rejectionReason" to reason
                 )
             ).await()
+
+            // Refund Kuota Cuti jika sebelumnya PENDING dan jenis cuti memotong kuota
+            if (prevStatus == Constants.LeaveStatus.PENDING && leave != null && leave.duration > 0) {
+                val policy = LeavePolicyRepository().getActivePolicy()
+                val isEmergency = policy.emergencyLeaveTypes.contains(leave.type)
+                if (!isEmergency) {
+                    val employee = employeeRepo.getByUserId(leave.employeeId)
+                        ?: employeeRepo.getById(leave.employeeId)
+                    if (employee != null && employee.employeeId.isNotEmpty()) {
+                        val refunded = employee.leaveQuota + leave.duration
+                        employeeRepo.updateLeaveQuota(employee.employeeId, refunded)
+                    }
+                }
+            }
+
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }
@@ -324,11 +373,41 @@ class LeaveRepository {
         } catch (e: Exception) { 0 }
     }
 
-    suspend fun getPendingCountByManagerId(managerEmployeeId: String): Int {
+    suspend fun getPendingCountByManagerId(
+        managerEmployeeId: String,
+        managerUserId: String = "",
+        departmentId: String = "",
+        subordinateIds: Set<String> = emptySet()
+    ): Int {
         return try {
-            col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
-                .whereEqualTo("managerId", managerEmployeeId)
-                .get().await().size()
+            val allPending = col.whereEqualTo("status", Constants.LeaveStatus.PENDING)
+                .get().await().documents.mapNotNull {
+                    it.toObject(LeaveRequest::class.java)
+                }
+            allPending.count { req ->
+                (subordinateIds.isNotEmpty() && req.employeeId in subordinateIds) ||
+                (managerEmployeeId.isNotEmpty() && req.managerId.equals(managerEmployeeId, ignoreCase = true)) ||
+                (managerUserId.isNotEmpty() && req.managerId.equals(managerUserId, ignoreCase = true)) ||
+                (departmentId.isNotEmpty() && req.departmentId.equals(departmentId, ignoreCase = true))
+            }
         } catch (e: Exception) { 0 }
+    }
+
+    /**
+     * Cek apakah karyawan punya cuti yang disetujui pada tanggal tertentu.
+     * Digunakan oleh PresenceResolver untuk menentukan status presence.
+     */
+    suspend fun getApprovedLeaveForDate(employeeId: String, date: String): LeaveRequest? {
+        return try {
+            val approved = col.whereEqualTo("employeeId", employeeId)
+                .whereEqualTo("status", "approved")
+                .get().await().documents.mapNotNull {
+                    it.toObject(LeaveRequest::class.java)?.copy(leaveId = it.id)
+                }
+            // Cari cuti yang range-nya mencakup tanggal tersebut
+            approved.firstOrNull { leave ->
+                date >= leave.startDate && date <= leave.endDate
+            }
+        } catch (e: Exception) { null }
     }
 }

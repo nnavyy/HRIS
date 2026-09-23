@@ -54,7 +54,8 @@ class OfficeLocationViewModel : ViewModel() {
 
     fun addLocation(name: String, lat: Double, lng: Double, radius: Double,
                     companyName: String = "", companyAddress: String = "",
-                    companyPhone: String = "", companyEmail: String = "", companyNpwp: String = "") {
+                    companyPhone: String = "", companyEmail: String = "", companyNpwp: String = "",
+                    timeZone: String = "Asia/Jakarta", operationalHours: String = "08:00 - 17:00") {
         viewModelScope.launch {
             val loc = OfficeLocation(
                 name = name,
@@ -65,7 +66,9 @@ class OfficeLocationViewModel : ViewModel() {
                 companyAddress = companyAddress,
                 companyPhone = companyPhone,
                 companyEmail = companyEmail,
-                companyNpwp = companyNpwp
+                companyNpwp = companyNpwp,
+                timeZone = timeZone,
+                operationalHours = operationalHours
             )
             repo.add(loc).fold(
                 onSuccess = {
@@ -81,7 +84,8 @@ class OfficeLocationViewModel : ViewModel() {
 
     fun updateLocation(id: String, name: String, lat: Double, lng: Double, radius: Double, isActive: Boolean,
                        companyName: String = "", companyAddress: String = "",
-                       companyPhone: String = "", companyEmail: String = "", companyNpwp: String = "") {
+                       companyPhone: String = "", companyEmail: String = "", companyNpwp: String = "",
+                       timeZone: String = "Asia/Jakarta", operationalHours: String = "08:00 - 17:00") {
         viewModelScope.launch {
             val loc = OfficeLocation(
                 id = id,
@@ -94,7 +98,9 @@ class OfficeLocationViewModel : ViewModel() {
                 companyAddress = companyAddress,
                 companyPhone = companyPhone,
                 companyEmail = companyEmail,
-                companyNpwp = companyNpwp
+                companyNpwp = companyNpwp,
+                timeZone = timeZone,
+                operationalHours = operationalHours
             )
             repo.update(id, loc).fold(
                 onSuccess = {
@@ -156,6 +162,8 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
     var companyPhone by remember { mutableStateOf("") }
     var companyEmail by remember { mutableStateOf("") }
     var companyNpwp by remember { mutableStateOf("") }
+    var selectedTimeZone by remember { mutableStateOf("Asia/Jakarta") }
+    var operationalHours by remember { mutableStateOf("08:00 - 17:00") }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -191,8 +199,13 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                                     if (loc.companyName.isNotEmpty()) {
                                         Text(loc.companyName, style = MaterialTheme.typography.bodySmall, color = Blue)
                                     }
-                                    Text("Lat: ${loc.latitude}, Lng: ${loc.longitude}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                                    Text("Radius: ${loc.allowedRadiusMeters}m", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                    val tzName = when (loc.timeZone) {
+                                        "Asia/Makassar", "WITA" -> "WITA (UTC+8)"
+                                        "Asia/Jayapura", "WIT" -> "WIT (UTC+9)"
+                                        else -> "WIB (UTC+7)"
+                                    }
+                                    Text("Zona Waktu: $tzName • Jam: ${loc.operationalHours.ifEmpty { "08:00 - 17:00" }}", style = MaterialTheme.typography.bodySmall, color = Blue)
+                                    Text("Lat: ${loc.latitude}, Lng: ${loc.longitude} • Radius: ${loc.allowedRadiusMeters}m", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                                 }
                                 Surface(shape = RoundedCornerShape(999.dp), color = if (loc.isActive) GreenSoft else RedSoft) {
                                     Text(if (loc.isActive) "AKTIF" else "NONAKTIF", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = if (loc.isActive) Green else Red)
@@ -213,6 +226,8 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                                         companyPhone = loc.companyPhone
                                         companyEmail = loc.companyEmail
                                         companyNpwp = loc.companyNpwp
+                                        selectedTimeZone = loc.timeZone.ifEmpty { "Asia/Jakarta" }
+                                        operationalHours = loc.operationalHours.ifEmpty { "08:00 - 17:00" }
                                         searchQuery = ""; searchError = null
                                         showDialog = true
                                     },
@@ -304,7 +319,41 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                     OutlinedTextField(value = companyNpwp, onValueChange = { companyNpwp = it }, label = { Text("NPWP Perusahaan") }, singleLine = true, modifier = Modifier.fillMaxWidth())
 
                     HorizontalDivider(color = CardBorder)
-                    Text("Informasi Lokasi", style = MaterialTheme.typography.labelMedium, color = Blue)
+                    Text("Pengaturan Waktu & Jam Kerja Kantor", style = MaterialTheme.typography.labelMedium, color = Blue)
+                    
+                    Text("Zona Waktu Resmi Kantor", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val tzList = listOf("Asia/Jakarta" to "WIB (UTC+7)", "Asia/Makassar" to "WITA (UTC+8)", "Asia/Jayapura" to "WIT (UTC+9)")
+                        tzList.forEach { (tzKey, tzLabel) ->
+                            val isSel = selectedTimeZone == tzKey
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSel) BlueSoft else CardBorder.copy(alpha = 0.2f),
+                                border = if (isSel) ButtonDefaults.outlinedButtonBorder else null,
+                                modifier = Modifier.weight(1f),
+                                onClick = { selectedTimeZone = tzKey }
+                            ) {
+                                Text(
+                                    tzLabel,
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isSel) Blue else TextSecondary,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                    
+                    OutlinedTextField(
+                        value = operationalHours,
+                        onValueChange = { operationalHours = it },
+                        label = { Text("Jam Operasional (Cth: 08:00 - 17:00)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    HorizontalDivider(color = CardBorder)
+                    Text("Informasi Lokasi & Geofence", style = MaterialTheme.typography.labelMedium, color = Blue)
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Kantor / Cabang") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text("Cari Lokasi / Pilih di Peta (Tap & Tahan)", style = MaterialTheme.typography.labelMedium)
                     
@@ -398,13 +447,16 @@ fun OfficeLocationScreen(user: User, onBack: () -> Unit, vm: OfficeLocationViewM
                     val rad = radius.toDoubleOrNull() ?: 100.0
                     if (isEditing) {
                         vm.updateLocation(editingLocation!!.id, name, lat, lng, rad, editingLocation!!.isActive,
-                            companyName, companyAddress, companyPhone, companyEmail, companyNpwp)
+                            companyName, companyAddress, companyPhone, companyEmail, companyNpwp,
+                            selectedTimeZone, operationalHours)
                     } else {
-                        vm.addLocation(name, lat, lng, rad, companyName, companyAddress, companyPhone, companyEmail, companyNpwp)
+                        vm.addLocation(name, lat, lng, rad, companyName, companyAddress, companyPhone, companyEmail, companyNpwp,
+                            selectedTimeZone, operationalHours)
                     }
                     showDialog = false
                     name = ""; latitude = ""; longitude = ""; radius = "100.0"
                     companyName = ""; companyAddress = ""; companyPhone = ""; companyEmail = ""; companyNpwp = ""
+                    selectedTimeZone = "Asia/Jakarta"; operationalHours = "08:00 - 17:00"
                     editingLocation = null
                 }) {
                     Text(if (isEditing) "Perbarui" else "Simpan")

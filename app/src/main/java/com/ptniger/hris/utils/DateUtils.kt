@@ -8,18 +8,33 @@ import java.util.Date
 import java.util.Locale
 
 object DateUtils {
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private val displayDateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
-    private val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale("id", "ID"))
-    private val periodFormat = SimpleDateFormat("yyyy-MM", Locale.getDefault())
-    private val dateTimeFormat = SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID"))
+    // Kunci zona waktu perusahaan ke Asia/Jakarta (WIB) untuk mencegah manipulasi timezone HP luar negeri
+    val COMPANY_TIMEZONE: java.util.TimeZone = java.util.TimeZone.getTimeZone("Asia/Jakarta")
+
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID")).apply { timeZone = COMPANY_TIMEZONE }
+    private val timeFormat = SimpleDateFormat("HH:mm", Locale("id", "ID")).apply { timeZone = COMPANY_TIMEZONE }
+    private val displayDateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")).apply { timeZone = COMPANY_TIMEZONE }
+    private val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale("id", "ID")).apply { timeZone = COMPANY_TIMEZONE }
+    private val periodFormat = SimpleDateFormat("yyyy-MM", Locale("id", "ID")).apply { timeZone = COMPANY_TIMEZONE }
+    private val dateTimeFormat = SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")).apply { timeZone = COMPANY_TIMEZONE }
 
     fun today(): String = dateFormat.format(Date())
     fun nowTime(): String = timeFormat.format(Date())
     fun currentPeriod(): String = periodFormat.format(Date())
-    fun currentMonth(): Int = Calendar.getInstance().get(Calendar.MONTH) + 1
-    fun currentYear(): Int = Calendar.getInstance().get(Calendar.YEAR)
+    fun currentMonth(): Int = Calendar.getInstance(COMPANY_TIMEZONE).get(Calendar.MONTH) + 1
+    fun currentYear(): Int = Calendar.getInstance(COMPANY_TIMEZONE).get(Calendar.YEAR)
+
+    /** Format: "Senin, 7 Juli 2026" */
+    fun todayFormatted(): String {
+        val fmt = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id", "ID")).apply { timeZone = COMPANY_TIMEZONE }
+        return fmt.format(Date())
+    }
+
+    /** Format: "Sen, 7 Jul" */
+    fun todayShort(): String {
+        val fmt = SimpleDateFormat("EEE, d MMM", Locale("id", "ID")).apply { timeZone = COMPANY_TIMEZONE }
+        return fmt.format(Date())
+    }
 
     fun formatDate(dateStr: String): String {
         return try {
@@ -140,11 +155,45 @@ object DateUtils {
         }
     }
 
-    fun formatTime(timestamp: Long): String = timeFormat.format(Date(timestamp))
-    fun formatDate(timestamp: Long): String = dateFormat.format(Date(timestamp))
+    /**
+     * Resolves TimeZone by identifier or name (e.g. "Asia/Makassar", "WITA", "Asia/Jayapura", "WIT", "Asia/Jakarta", "WIB").
+     * Defaults to COMPANY_TIMEZONE (Asia/Jakarta - WIB).
+     */
+    fun resolveTimeZone(timeZoneId: String?): java.util.TimeZone {
+        if (timeZoneId.isNullOrBlank()) return COMPANY_TIMEZONE
+        return when (timeZoneId.trim().uppercase()) {
+            "WIB", "ASIA/JAKARTA" -> java.util.TimeZone.getTimeZone("Asia/Jakarta")
+            "WITA", "ASIA/MAKASSAR" -> java.util.TimeZone.getTimeZone("Asia/Makassar")
+            "WIT", "ASIA/JAYAPURA" -> java.util.TimeZone.getTimeZone("Asia/Jayapura")
+            else -> try {
+                java.util.TimeZone.getTimeZone(timeZoneId)
+            } catch (_: Exception) {
+                COMPANY_TIMEZONE
+            }
+        }
+    }
 
-    suspend fun serverNowTime(): String = formatTime(getServerTimeMillis())
-    suspend fun serverToday(): String = formatDate(getServerTimeMillis())
+    fun getTimeZoneLabel(tz: java.util.TimeZone): String {
+        return when (tz.id) {
+            "Asia/Jakarta" -> "WIB"
+            "Asia/Makassar" -> "WITA"
+            "Asia/Jayapura" -> "WIT"
+            else -> tz.getDisplayName(false, java.util.TimeZone.SHORT, Locale("id", "ID"))
+        }
+    }
+
+    fun formatTime(timestamp: Long, tz: java.util.TimeZone = COMPANY_TIMEZONE): String {
+        val fmt = SimpleDateFormat("HH:mm", Locale("id", "ID")).apply { timeZone = tz }
+        return fmt.format(Date(timestamp))
+    }
+
+    fun formatDate(timestamp: Long, tz: java.util.TimeZone = COMPANY_TIMEZONE): String {
+        val fmt = SimpleDateFormat("yyyy-MM-dd", Locale("id", "ID")).apply { timeZone = tz }
+        return fmt.format(Date(timestamp))
+    }
+
+    suspend fun serverNowTime(tz: java.util.TimeZone = COMPANY_TIMEZONE): String = formatTime(getServerTimeMillis(), tz)
+    suspend fun serverToday(tz: java.util.TimeZone = COMPANY_TIMEZONE): String = formatDate(getServerTimeMillis(), tz)
 
     /**
      * Checks if there's a significant time difference between device and server.

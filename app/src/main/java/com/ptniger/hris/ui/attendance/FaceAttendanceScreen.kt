@@ -60,7 +60,8 @@ fun FaceAttendanceScreen(
         )
     }
     var detectionState by remember { mutableStateOf(FaceDetectionState.SEARCHING) }
-    var blinkDetected by remember { mutableStateOf(false) }
+    var activeChallenge by remember { mutableStateOf(FaceRecognitionManager.getRandomChallenge()) }
+    var challengeCompleted by remember { mutableStateOf(false) }
     var isVerifying by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var failureCount by remember { mutableStateOf(0) }
@@ -86,17 +87,17 @@ fun FaceAttendanceScreen(
 
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     
-    // Auto-verify when blink is detected
+    // Auto-verify when active challenge is passed & face is oriented forward
     var latestBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var latestFace by remember { mutableStateOf<com.google.mlkit.vision.face.Face?>(null) }
 
-    LaunchedEffect(blinkDetected) {
-        if (blinkDetected && !isVerifying && detectionState == FaceDetectionState.DETECTED) {
+    LaunchedEffect(challengeCompleted) {
+        if (challengeCompleted && !isVerifying) {
             val bmp = latestBitmap
             val face = latestFace
             if (bmp != null && face != null) {
                 isVerifying = true
-                message = "Memverifikasi wajah..."
+                message = "Tantangan lolos! Memverifikasi biometrik wajah..."
                 
                 try {
                     val croppedFace = FaceRecognitionManager.cropFaceBitmap(bmp, face)
@@ -106,40 +107,39 @@ fun FaceAttendanceScreen(
                         is FaceRecognitionManager.RecognitionResult.Match -> {
                             // Cek apakah match dengan user yang login
                             if (result.employee.userId == user.userId || result.employee.employeeId == user.employeeId) {
-                                message = "Selamat datang, ${result.employee.name}!"
+                                message = "Wajah Terverifikasi Asli ✓\nSelamat datang, ${result.employee.name}!"
                                 detectionState = FaceDetectionState.REGISTERED // Re-use this state for success
                                 
-                                // In real app, you would pass these back to AttendanceScreen or call checkIn directly.
-                                // For simplicity we call checkIn here, but you should pass coordinates.
-                                // Since we don't have location here, we better navigate back to AttendanceScreen
-                                // and pass the similarity score to be submitted with location.
-                                delay(1500)
+                                delay(1200)
                                 val uri = saveBitmapToCache(croppedFace)
                                 onSuccess(uri, result.similarity)
                             } else {
                                 message = "Wajah terdeteksi sebagai ${result.employee.name}, bukan akun Anda."
-                                delay(2000)
-                                blinkDetected = false
+                                delay(2200)
+                                activeChallenge = FaceRecognitionManager.getRandomChallenge()
+                                challengeCompleted = false
                                 isVerifying = false
                                 detectionState = FaceDetectionState.SEARCHING
                             }
                         }
                         is FaceRecognitionManager.RecognitionResult.NoMatch -> {
                             failureCount++
-                            message = "Wajah tidak dikenali (Sim: ${"%.2f".format(result.similarity)})"
+                            message = "Wajah tidak cocok dengan data terdaftar (Sim: ${"%.2f".format(result.similarity)})"
                             delay(2000)
                             if (failureCount >= 3) {
                                 onFallback()
                             } else {
-                                blinkDetected = false
+                                activeChallenge = FaceRecognitionManager.getRandomChallenge()
+                                challengeCompleted = false
                                 isVerifying = false
                                 detectionState = FaceDetectionState.SEARCHING
                             }
                         }
                         else -> {
-                            message = "Gagal memverifikasi"
+                            message = "Gagal memverifikasi biometrik"
                             delay(2000)
-                            blinkDetected = false
+                            activeChallenge = FaceRecognitionManager.getRandomChallenge()
+                            challengeCompleted = false
                             isVerifying = false
                             detectionState = FaceDetectionState.SEARCHING
                         }
@@ -147,7 +147,8 @@ fun FaceAttendanceScreen(
                 } catch (e: Exception) {
                     message = "Error: ${e.message}"
                     delay(2000)
-                    blinkDetected = false
+                    activeChallenge = FaceRecognitionManager.getRandomChallenge()
+                    challengeCompleted = false
                     isVerifying = false
                 }
             }
@@ -194,11 +195,12 @@ fun FaceAttendanceScreen(
                                             coroutineScope.launch {
                                                 latestBitmap = bitmap
                                                 latestFace = face
-                                                if (detectionState != FaceDetectionState.DETECTED) {
+                                                if (detectionState != FaceDetectionState.DETECTED && detectionState != FaceDetectionState.REGISTERED) {
                                                     detectionState = FaceDetectionState.DETECTED
                                                 }
-                                                if (FaceRecognitionManager.isBlinking(face)) {
-                                                    blinkDetected = true
+                                                // Cek apakah aksi tantangan liveness terpenuhi
+                                                if (!challengeCompleted && FaceRecognitionManager.verifyChallenge(face, activeChallenge)) {
+                                                    challengeCompleted = true
                                                 }
                                             }
                                         } else {
@@ -206,7 +208,6 @@ fun FaceAttendanceScreen(
                                             if (noFaceFrameCount > 3) {
                                                 coroutineScope.launch {
                                                     detectionState = FaceDetectionState.SEARCHING
-                                                    blinkDetected = false
                                                 }
                                             }
                                         }
@@ -244,9 +245,10 @@ fun FaceAttendanceScreen(
                 blendMode = BlendMode.Clear
             )
             drawOval(
-                color = when (detectionState) {
-                    FaceDetectionState.REGISTERED -> Green
-                    FaceDetectionState.DETECTED -> Color(0xFF34A853)
+                color = when {
+                    detectionState == FaceDetectionState.REGISTERED -> Green
+                    challengeCompleted -> Green
+                    detectionState == FaceDetectionState.DETECTED -> Color(0xFFF59E0B) // Amber saat mengerjakan tantangan
                     else -> Color.White
                 },
                 topLeft = Offset(ellipseRect.left, ellipseRect.top - ellipseRect.height * 0.25f),
@@ -259,19 +261,33 @@ fun FaceAttendanceScreen(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.7f))
+                .background(Color.Black.copy(alpha = 0.75f))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Anti-spoofing challenge badge
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = if (challengeCompleted) Green.copy(alpha = 0.2f) else Color(0xFFF59E0B).copy(alpha = 0.2f)
+            ) {
+                Text(
+                    text = if (challengeCompleted) "✓ Liveness Terkonfirmasi Asli" else "🛡️ Verifikasi Anti-Foto",
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (challengeCompleted) Green else Color(0xFFF59E0B)
+                )
+            }
+
             Text(
                 when {
                     message.isNotEmpty() -> message
-                    detectionState == FaceDetectionState.DETECTED -> "Wajah terdeteksi ✓ — Berkedip untuk konfirmasi"
-                    else -> "Arahkan wajah Anda ke dalam kotak"
+                    challengeCompleted -> "Tantangan selesai! Menghadap lurus ke kamera..."
+                    detectionState == FaceDetectionState.DETECTED -> "👉 ${activeChallenge.instruction}\n(${activeChallenge.hint})"
+                    else -> "Arahkan wajah Anda ke dalam oval"
                 },
-                color = if (detectionState == FaceDetectionState.REGISTERED) Green else Color.White,
-                style = MaterialTheme.typography.bodyMedium,
+                color = if (challengeCompleted || detectionState == FaceDetectionState.REGISTERED) Green else Color.White,
+                style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
             )
 

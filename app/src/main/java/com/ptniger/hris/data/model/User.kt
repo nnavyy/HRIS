@@ -16,6 +16,7 @@ data class User(
     val officeId: String = "",
     val status: String = "active", // Legacy support
     val isActive: Boolean = true,
+    val isProfileComplete: Boolean = true,  // false = arahkan ke onboarding wizard
     val photoUrl: String = "",
     val phone: String? = null,
     val address: String? = null,

@@ -3,6 +3,7 @@ package com.ptniger.hris.ui.navigation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -12,7 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,9 +26,16 @@ import com.ptniger.hris.utils.RoleManager
 fun BottomNavBar(
     roles: List<String>,
     currentRoute: String,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    userName: String = ""
 ) {
     val items = RoleManager.getNavItems(roles)
+
+    // Buat inisial dari nama (ambil huruf pertama dari tiap kata, max 2)
+    val initials = userName.split(" ")
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar()?.toString() }
+        .joinToString("")
 
     Surface(
         modifier = Modifier
@@ -44,12 +54,22 @@ fun BottomNavBar(
         ) {
             items.forEach { item ->
                 val selected = currentRoute == item.route
-                NavButton(
-                    icon = getIcon(item.icon),
-                    label = item.label,
-                    selected = selected,
-                    onClick = { onNavigate(item.route) }
-                )
+
+                if (item.route == "profile" && initials.isNotBlank()) {
+                    ProfileNavButton(
+                        initials = initials,
+                        label = item.label,
+                        selected = selected,
+                        onClick = { onNavigate(item.route) }
+                    )
+                } else {
+                    NavButton(
+                        icon = getIcon(item.icon),
+                        label = item.label,
+                        selected = selected,
+                        onClick = { onNavigate(item.route) }
+                    )
+                }
             }
         }
     }
@@ -65,10 +85,7 @@ private fun NavButton(
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .then(
-                if (selected) Modifier.background(BlueSoft)
-                else Modifier
-            )
+            .then(if (selected) Modifier.background(BlueSoft) else Modifier)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -90,23 +107,72 @@ private fun NavButton(
     }
 }
 
+/**
+ * Item "Profil" di navbar — lingkaran berisi inisial ukuran 22dp,
+ * identik dengan ukuran ikon item navbar lainnya.
+ */
+@Composable
+private fun ProfileNavButton(
+    initials: String,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .then(if (selected) Modifier.background(BlueSoft) else Modifier)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Lingkaran inisial — 22dp persis sama dengan ukuran ikon lain
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(
+                    if (selected) Blue else TextSecondary.copy(alpha = 0.25f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = initials.take(2),
+                color = if (selected) Color.White else TextSecondary,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = if (selected) Blue else TextSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 private fun getIcon(name: String): ImageVector {
     return when (name) {
-        "home" -> Icons.Default.Home
-        "people" -> Icons.Default.People
-        "calendar" -> Icons.Default.CalendarMonth
-        "star" -> Icons.Default.Star
-        "person" -> Icons.Default.Person
-        "payments" -> Icons.Default.Payments
-        "chart" -> Icons.Default.BarChart
-        "shield" -> Icons.Default.Shield
-        "clock" -> Icons.Default.AccessTime
-        "admin" -> Icons.Default.AdminPanelSettings
-        "settings" -> Icons.Default.Settings
+        "home"         -> Icons.Default.Home
+        "people"       -> Icons.Default.People
+        "calendar"     -> Icons.Default.CalendarMonth
+        "star"         -> Icons.Default.Star
+        "person"       -> Icons.Default.Person
+        "payments"     -> Icons.Default.Payments
+        "chart"        -> Icons.Default.BarChart
+        "shield"       -> Icons.Default.Shield
+        "clock"        -> Icons.Default.AccessTime
+        "admin"        -> Icons.Default.AdminPanelSettings
+        "settings"     -> Icons.Default.Settings
         "check_circle" -> Icons.Default.CheckCircle
-        "rate_review" -> Icons.Default.RateReview
-        "smart_toy" -> Icons.Default.Psychology
-        "description" -> Icons.Default.Description
-        else -> Icons.Default.Circle
+        "rate_review"  -> Icons.Default.RateReview
+        "smart_toy"    -> Icons.Default.Psychology
+        "description"  -> Icons.Default.Description
+        else           -> Icons.Default.Circle
     }
 }

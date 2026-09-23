@@ -18,13 +18,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.ptniger.hris.data.model.Attendance
 import com.ptniger.hris.data.model.Employee
+import com.ptniger.hris.data.model.EmployeePresence
 import com.ptniger.hris.data.model.User
+import com.ptniger.hris.data.model.WorkSchedule
 import com.ptniger.hris.data.repository.AttendanceRepository
 import com.ptniger.hris.data.repository.EmployeeRepository
 import com.ptniger.hris.data.repository.KpiRepository
+import com.ptniger.hris.data.repository.WorkScheduleRepository
+import com.ptniger.hris.ui.components.PresenceBadge
+import com.ptniger.hris.ui.components.PresenceBadgeSize
+import com.ptniger.hris.ui.components.WeeklyScheduleRow
+import com.ptniger.hris.ui.components.InfoChip
 import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.Constants
 import com.ptniger.hris.utils.DateUtils
+import com.ptniger.hris.utils.PresenceResolver
 import java.util.Calendar
 import kotlinx.coroutines.launch
 
@@ -37,20 +45,39 @@ fun EmployeeDetailScreen(
     onNavigateToFaceRegistration: (String, String) -> Unit = { _, _ -> }
 ) {
     var employee by remember { mutableStateOf<Employee?>(null) }
+    var managerEmployee by remember { mutableStateOf<Employee?>(null) }
+    var isMySubordinate by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var todayAttendance by remember { mutableStateOf<Attendance?>(null) }
     var monthlyStats by remember { mutableStateOf<MonthlyAttStats?>(null) }
     var kpiScore by remember { mutableStateOf(0.0) }
+    var presence by remember { mutableStateOf<EmployeePresence?>(null) }
+    var schedule by remember { mutableStateOf<WorkSchedule?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(employeeId) {
         val empRepo = EmployeeRepository()
         val attRepo = AttendanceRepository()
         val kpiRepo = KpiRepository()
+        val authRepo = com.ptniger.hris.data.repository.AuthRepository()
         val cal = Calendar.getInstance()
 
-        employee = empRepo.getById(employeeId)
+        val allEmps = empRepo.getAll()
+        val allUsers = authRepo.getAllUsers()
+
+        val emp = allEmps.find { it.employeeId == employeeId } ?: empRepo.getById(employeeId)
+        employee = emp
         todayAttendance = attRepo.getTodayAttendance(employeeId)
+
+        // Resolve manager & subordinate relation
+        emp?.let {
+            presence = PresenceResolver.resolveToday(it)
+            schedule = WorkScheduleRepository().getForEmployee(it.workScheduleId)
+            managerEmployee = com.ptniger.hris.utils.HierarchyHelper.resolveManagerForEmployee(it, allEmps, allUsers)
+            
+            val viewerEmp = allEmps.find { e -> e.userId == user.userId || e.employeeId == user.employeeId }
+            isMySubordinate = com.ptniger.hris.utils.HierarchyHelper.isSubordinateOf(it, user, viewerEmp)
+        }
 
         // Statistik absensi bulan ini
         val monthlyAtt = attRepo.getMonthlyAttendance(
@@ -148,14 +175,63 @@ fun EmployeeDetailScreen(
 
             Spacer(Modifier.height(12.dp))
 
+            // ── PRES-04: Presence Card (Status Hari Ini) ──────────────
+            presence?.let { pres ->
+                Surface(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                    shape = RoundedCornerShape(20.dp), color = Surface, shadowElevation = 1.dp
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Status Hari Ini", style = MaterialTheme.typography.titleSmall)
+
+                        // Presence badge full size
+                        PresenceBadge(status = pres.presenceStatus, size = PresenceBadgeSize.FULL,
+                            modifier = Modifier.fillMaxWidth())
+
+                        // Detail check-in jika hadir
+                        if (pres.checkInTime.isNotEmpty()) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                InfoChip("Masuk", pres.checkInTime)
+                                if (pres.checkOutTime.isNotEmpty()) InfoChip("Keluar", pres.checkOutTime)
+                                InfoChip("Kantor", pres.officeName)
+                            }
+                            if (pres.lateMinutes > 0) {
+                                Surface(shape = RoundedCornerShape(8.dp), color = OrangeSoft) {
+                                    Text("Terlambat ${pres.lateMinutes} menit",
+                                        Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        style = MaterialTheme.typography.labelSmall, color = Orange)
+                                }
+                            }
+                        }
+
+                        // Jadwal minggu ini (7 kotak kecil)
+                        Text("Jadwal Minggu Ini", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                        WeeklyScheduleRow(schedule = schedule)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
             // ── Info Dasar ────────────────────────────────────────────
             Surface(
                 Modifier.fillMaxWidth().padding(horizontal = 18.dp),
                 shape = RoundedCornerShape(24.dp), color = Surface, shadowElevation = 1.dp
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Informasi Karyawan", style = MaterialTheme.typography.titleSmall)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Informasi Karyawan", style = MaterialTheme.typography.titleSmall)
+                        if (isMySubordinate) {
+                            Surface(shape = RoundedCornerShape(999.dp), color = TealSoft) {
+                                Text("Tim Anda", Modifier.padding(horizontal = 8.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Teal)
+                            }
+                        }
+                    }
                     InfoRow("NIK", emp.nik)
+                    InfoRow("Departemen", emp.department.ifEmpty { "-" })
+                    InfoRow("Jabatan", emp.position.ifEmpty { "-" })
+                    val managerLabel = managerEmployee?.let { "${it.name} • ${it.position.ifEmpty { "Manager" }}" } ?: "Belum ditentukan"
+                    InfoRow("Atasan Langsung", managerLabel)
                     InfoRow("Email", emp.email)
                     InfoRow("Telepon", emp.phone.ifEmpty { "-" })
                     InfoRow("Cabang", emp.branch.ifEmpty { "-" })

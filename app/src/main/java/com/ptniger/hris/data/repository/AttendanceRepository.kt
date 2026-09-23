@@ -91,6 +91,8 @@ class AttendanceRepository {
             var isWithinRadius = false
             var validationStatus = Constants.AttendanceStatus.VALID
 
+            var weatherFraudFlag = com.ptniger.hris.data.repository.WeatherRepository.WeatherComparisonResult.UNAVAILABLE
+
             if (office != null) {
                 distance = LocationUtils.calculateDistance(
                     attendance.latitude, attendance.longitude,
@@ -99,6 +101,23 @@ class AttendanceRepository {
                 isWithinRadius = distance <= office.allowedRadiusMeters
                 if (!isWithinRadius) {
                     validationStatus = Constants.AttendanceStatus.INVALID_LOCATION
+                }
+
+                if (!attendance.isMockLocation) {
+                    weatherFraudFlag = try {
+                        com.ptniger.hris.data.repository.WeatherRepository().compareWeatherLocations(
+                            employeeLat = attendance.latitude,
+                            employeeLon = attendance.longitude,
+                            officeLat = office.latitude,
+                            officeLon = office.longitude
+                        )
+                    } catch (_: Exception) {
+                        com.ptniger.hris.data.repository.WeatherRepository.WeatherComparisonResult.UNAVAILABLE
+                    }
+                    
+                    if (weatherFraudFlag == com.ptniger.hris.data.repository.WeatherRepository.WeatherComparisonResult.SUSPICIOUS) {
+                        validationStatus = Constants.AttendanceStatus.NEED_REVIEW
+                    }
                 }
             } else {
                 validationStatus = Constants.AttendanceStatus.NEED_REVIEW
@@ -149,6 +168,7 @@ class AttendanceRepository {
                     validationStatus = validationStatus,
                     attendanceStatus = attendanceStatus,
                     lateMinutes = lateMinutes,
+                    weatherCheckResult = weatherFraudFlag.name,
                     officeId = office?.id ?: "",
                     officeLatitude = office?.latitude ?: 0.0,
                     officeLongitude = office?.longitude ?: 0.0,
@@ -206,6 +226,7 @@ class AttendanceRepository {
                             "distanceFromOfficeMeters" to distance,
                             "isWithinOfficeRadius" to isWithinRadius,
                             "isMockLocation" to attendance.isMockLocation,
+                            "weatherCheckResult" to weatherFraudFlag.name,
                             "serverTimestamp" to attendance.serverTimestamp,
                             "deviceTimestamp" to attendance.deviceTimestamp,
                             "isTimeTampered" to attendance.isTimeTampered,

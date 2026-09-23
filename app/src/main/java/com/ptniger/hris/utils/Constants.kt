@@ -75,5 +75,12 @@ object Constants {
         const val LEAVE_POLICIES = "leave_policies"
         const val EMAIL_QUEUE = "email_queue"
         const val APP_CONFIGS = "app_configs"
+        const val OVERTIME_REQUESTS = "overtime_requests"
+    }
+
+    object OvertimeStatus {
+        const val PENDING = "pending"
+        const val APPROVED = "approved"
+        const val REJECTED = "rejected"
     }
 }

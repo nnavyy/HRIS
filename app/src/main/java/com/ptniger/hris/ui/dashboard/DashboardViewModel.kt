@@ -15,6 +15,7 @@ class DashboardViewModel : ViewModel() {
     private val kpiRepo = KpiRepository()
     private val auditRepo = AuditLogRepository()
     private val notifRepo = NotificationRepository()
+    private val payrollRepo = PayrollRepository()
 
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state
@@ -40,32 +41,50 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    fun loadManagerDashboard(userId: String, department: String) {
+    fun loadManagerDashboard(user: com.ptniger.hris.data.model.User) {
+        loadManagerDashboard(user.userId, user.departmentId, user)
+    }
+
+    fun loadManagerDashboard(userId: String, department: String, userObj: com.ptniger.hris.data.model.User? = null) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             val allEmployees = employeeRepo.getAll()
-            
-            // Team members: bawahan langsung (managerId == userId) ATAU se-departemen
-            val teamMembers = allEmployees.filter { 
-                it.managerId == userId || (department.isNotEmpty() && it.department.equals(department, ignoreCase = true)) 
-            }
-            
-            // Ambil employeeId manager ini dari Firestore
             val managerEmployee = employeeRepo.getByUserId(userId)
             val managerEmpId = managerEmployee?.employeeId ?: ""
+            val managerUser = userObj ?: com.ptniger.hris.data.model.User(userId = userId, departmentId = department)
 
-            val pendingLeave = if (managerEmpId.isNotEmpty()) {
-                leaveRepo.getPendingCountByManagerId(managerEmpId)
-            } else {
-                leaveRepo.getPendingCount(department)
-            }
-            
+            // Menggunakan HierarchyHelper terpusat untuk mendeteksi seluruh bawahan tim
+            val teamMembers = com.ptniger.hris.utils.HierarchyHelper.getSubordinates(managerUser, managerEmployee, allEmployees)
+            val subordinateEmpIds = teamMembers.mapNotNull { it.employeeId.takeIf { id -> id.isNotEmpty() } }.toSet()
+            val subordinateAllIds = com.ptniger.hris.utils.HierarchyHelper.getSubordinateIdentifiers(managerUser, managerEmployee, allEmployees)
+
+            // 1. Cuti Pending untuk bawahan
+            val pendingLeave = leaveRepo.getPendingCountByManagerId(
+                managerEmployeeId = managerEmpId,
+                managerUserId = userId,
+                departmentId = department,
+                subordinateIds = subordinateAllIds
+            )
+
+            // 2. Payroll Pending untuk bawahan
+            val teamPayrolls = payrollRepo.getTeamPayrolls(
+                managerEmployeeId = managerEmpId,
+                managerUserId = userId,
+                departmentId = department,
+                subordinateEmpIds = subordinateEmpIds
+            )
+            val pendingPayrolls = teamPayrolls.count { it.status == com.ptniger.hris.utils.Constants.PayrollStatus.PENDING_APPROVAL }
+
+            // 3. Kehadiran tim hari ini
             val allPresentToday = attendanceRepo.getAllToday()
-            val teamMemberIds = teamMembers.map { it.employeeId }.toSet()
-            val presentToday = allPresentToday.count { it.employeeId in teamMemberIds }
+            val presentToday = allPresentToday.count { it.employeeId in subordinateEmpIds }
+
             _state.value = DashboardState(
-                totalEmployees = teamMembers.size, pendingApprovals = pendingLeave,
-                presentToday = presentToday, isLoading = false
+                totalEmployees = teamMembers.size,
+                pendingApprovals = pendingLeave,
+                pendingPayrolls = pendingPayrolls,
+                presentToday = presentToday,
+                isLoading = false
             )
         }
     }
@@ -111,6 +130,7 @@ data class DashboardState(
     val totalEmployees: Int = 0,
     val totalUsers: Int = 0,
     val pendingApprovals: Int = 0,
+    val pendingPayrolls: Int = 0,
     val presentToday: Int = 0,
     val leaveQuota: Int = 0,
     val checkInTime: String = "",

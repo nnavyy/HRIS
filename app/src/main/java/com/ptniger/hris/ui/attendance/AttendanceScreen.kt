@@ -417,6 +417,40 @@ fun AttendanceMonitorScreen(
                                     color = com.ptniger.hris.ui.theme.TextSecondary
                                 )
                             }
+                            // Tampilkan Peringatan jika weatherCheckResult mencurigakan
+                            if (att.weatherCheckResult == "SUSPICIOUS" || att.isMockLocation) {
+                                Spacer(Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Warning,
+                                        contentDescription = "Peringatan Lokasi",
+                                        tint = com.ptniger.hris.ui.theme.Red,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        "Indikasi Lokasi Palsu",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = com.ptniger.hris.ui.theme.Red
+                                    )
+                                }
+                            } else if (att.weatherCheckResult == "SLIGHTLY_OFF") {
+                                Spacer(Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Info,
+                                        contentDescription = "Peringatan Cuaca",
+                                        tint = com.ptniger.hris.ui.theme.Orange,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        "Cuaca Tidak Sinkron",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = com.ptniger.hris.ui.theme.Orange
+                                    )
+                                }
+                            }
                         }
                         Surface(shape = RoundedCornerShape(999.dp), color = if (isLate) com.ptniger.hris.ui.theme.OrangeSoft else com.ptniger.hris.ui.theme.GreenSoft) {
                             Text(

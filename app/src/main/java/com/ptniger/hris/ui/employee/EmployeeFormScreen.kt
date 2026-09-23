@@ -33,6 +33,7 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
     LaunchedEffect(Unit) { vm.loadAll() }
     val officeLocations by vm.officeLocations.collectAsState()
     val usersList by vm.users.collectAsState()
+    val employeesList by vm.employees.collectAsState()
     val isNew = employeeId == null
     var linkedUserId by remember { mutableStateOf("") }
     var userExpanded by remember { mutableStateOf(false) }
@@ -51,9 +52,31 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
     var baseSalary by remember { mutableStateOf("") }
     val message by vm.message.collectAsState()
 
-    val managerUsers = usersList.filter {
-        it.primaryRole == Constants.Role.MANAGER || it.role == Constants.Role.MANAGER ||
-            it.roles.contains(Constants.Role.MANAGER)
+    val managerOptions = remember(usersList, employeesList) {
+        val list = mutableListOf<Triple<String, String, String>>() // (id, name, desc)
+        // 1. Dari data Employees yang berposisi Manager atau terhubung dengan User Manager
+        employeesList.forEach { emp ->
+            val linkedUser = usersList.find { it.userId == emp.userId }
+            val isManager = emp.position.contains("Manager", ignoreCase = true) ||
+                emp.position.contains("Head", ignoreCase = true) ||
+                linkedUser?.primaryRole == Constants.Role.MANAGER ||
+                linkedUser?.role == Constants.Role.MANAGER ||
+                linkedUser?.roles?.contains(Constants.Role.MANAGER) == true
+            if (isManager && emp.employeeId != (employeeId ?: "")) {
+                list.add(Triple(emp.employeeId, emp.name, "${emp.position.ifEmpty { "Manager" }} • ${emp.department}"))
+            }
+        }
+        // 2. Dari data Users yang ber-role Manager tapi belum ada Employee doc
+        usersList.filter {
+            it.primaryRole == Constants.Role.MANAGER || it.role == Constants.Role.MANAGER ||
+                it.roles.contains(Constants.Role.MANAGER)
+        }.forEach { usr ->
+            val empLinked = employeesList.find { it.userId == usr.userId }
+            if (empLinked == null && list.none { it.first == usr.userId }) {
+                list.add(Triple(usr.userId, usr.fullName.ifEmpty { usr.name }, "Manager • ${usr.departmentId.ifEmpty { "Umum" }}"))
+            }
+        }
+        list
     }
 
     LaunchedEffect(employeeId) {
@@ -236,18 +259,27 @@ fun EmployeeFormScreen(employeeId: String?, user: User, onBack: () -> Unit, vm: 
                     Text("Manager Langsung (Opsional)", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                     Spacer(Modifier.height(4.dp))
                     ExposedDropdownMenuBox(expanded = managerExpanded, onExpandedChange = { managerExpanded = !managerExpanded }) {
+                        val selectedManagerOpt = managerOptions.find { it.first == managerId }
+                        val displayManagerText = selectedManagerOpt?.let { "${it.second} (${it.third})" }
+                            ?: if (managerId.isEmpty()) "Pilih Atasan / Manajer" else managerId
+
                         OutlinedTextField(
-                            value = managerUsers.find { it.userId == managerId }?.let { it.fullName.ifEmpty { it.name } } ?: if (managerId.isEmpty()) "Pilih Manager" else managerId,
+                            value = displayManagerText,
                             onValueChange = {}, readOnly = true,
                             modifier = Modifier.fillMaxWidth().menuAnchor(), shape = RoundedCornerShape(16.dp),
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = managerExpanded) }
                         )
                         ExposedDropdownMenu(expanded = managerExpanded, onDismissRequest = { managerExpanded = false }) {
-                            DropdownMenuItem(text = { Text("— Tidak ada —") }, onClick = { managerId = ""; managerExpanded = false })
-                            managerUsers.forEach { mgr ->
+                            DropdownMenuItem(text = { Text("— Tanpa Atasan Langsung (Gunakan Manajer Departemen) —") }, onClick = { managerId = ""; managerExpanded = false })
+                            managerOptions.forEach { opt ->
                                 DropdownMenuItem(
-                                    text = { Text("${mgr.fullName.ifEmpty { mgr.name }} (${mgr.email})") },
-                                    onClick = { managerId = mgr.userId; managerExpanded = false }
+                                    text = { 
+                                        Column {
+                                            Text(opt.second, style = MaterialTheme.typography.titleSmall)
+                                            Text(opt.third, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                        }
+                                    },
+                                    onClick = { managerId = opt.first; managerExpanded = false }
                                 )
                             }
                         }

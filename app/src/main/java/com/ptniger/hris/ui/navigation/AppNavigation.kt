@@ -48,6 +48,8 @@ import com.ptniger.hris.ui.contract.ContractFormScreen
 import com.ptniger.hris.ui.contract.ContractSignScreen
 import com.ptniger.hris.ui.contract.EmployeePickerForContractScreen
 import com.ptniger.hris.ui.kpi.PeerReviewScreen
+import com.ptniger.hris.ui.manager.TeamPresenceScreen
+import com.ptniger.hris.ui.onboarding.OnboardingScreen
 import com.ptniger.hris.data.model.Employee
 import com.ptniger.hris.ui.theme.*
 import com.ptniger.hris.utils.Constants
@@ -133,23 +135,37 @@ fun AppNavigation(
                     return@composable
                 }
                 else -> {
-                    var navigationEmployee by remember { mutableStateOf<Employee?>(null) }
-                    MainScaffold(
-                        user = user,
-                        currentRoute = currentRoute,
-                        navigationEmployee = navigationEmployee,
-                        onNavigate = { route -> currentRoute = route },
-                        onSetNavigationEmployee = { navigationEmployee = it },
-                        onLogout = {
-                            loginVm.clearLoginState()
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true }
+                    // Cek onboarding: jika profil belum lengkap, tampilkan wizard
+                    if (!user.isProfileComplete) {
+                        OnboardingScreen(
+                            user = user,
+                            onComplete = {
+                                // Reload user state setelah onboarding selesai
+                                loginVm.refreshCurrentUser()
+                            },
+                            onNavigateToFaceRegistration = {
+                                loginVm.refreshCurrentUser()
                             }
-                        },
-                        onNavigateToDetail = { route ->
-                            currentRoute = route
-                        }
-                    )
+                        )
+                    } else {
+                        var navigationEmployee by remember { mutableStateOf<Employee?>(null) }
+                        MainScaffold(
+                            user = user,
+                            currentRoute = currentRoute,
+                            navigationEmployee = navigationEmployee,
+                            onNavigate = { route -> currentRoute = route },
+                            onSetNavigationEmployee = { navigationEmployee = it },
+                            onLogout = {
+                                loginVm.clearLoginState()
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            },
+                            onNavigateToDetail = { route ->
+                                currentRoute = route
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -179,6 +195,7 @@ fun MainScaffold(
                 currentRoute == "contract_form" -> { onSetNavigationEmployee(null); "dashboard" }
                 currentRoute == "edit_profile" -> "profile"
                 currentRoute == "peer_review" -> "kpi_result"
+                currentRoute == "team_presence" -> "dashboard"
                 else -> "dashboard"
             }
             onNavigate(hardwareBackRoute)
@@ -236,6 +253,14 @@ fun MainScaffold(
                     "work_schedule_config" -> WorkScheduleScreen(user = user, onBack = { onNavigate("dashboard") })
                     "leave_policy" -> LeavePolicyScreen(user = user, onBack = { onNavigate("dashboard") })
                     "app_config" -> com.ptniger.hris.ui.superadmin.AppConfigScreen(onBack = { onNavigate("dashboard") })
+                    "dev_tools" -> com.ptniger.hris.ui.superadmin.DevToolsScreen(onBack = { onNavigate("dashboard") })
+                    "team_presence" -> TeamPresenceScreen(
+                        user = user,
+                        onBack = { onNavigate("dashboard") },
+                        onNavigateToEmployee = { id ->
+                            onNavigateToDetail("employee_detail_$id")
+                        }
+                    )
                     else -> {
                         if (currentRoute.startsWith("employee_form_")) {
                             val id = currentRoute.removePrefix("employee_form_")
@@ -279,44 +304,13 @@ fun MainScaffold(
             }
         }
 
-        // Profile Avatar - Top Right (always visible except on profile/login)
-        if (currentRoute != "profile") {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(end = 16.dp, top = 10.dp),
-                contentAlignment = Alignment.TopEnd
-            ) {
-                Surface(
-                    onClick = { onNavigate("profile") },
-                    modifier = Modifier.size(42.dp),
-                    shape = RoundedCornerShape(50),
-                    shadowElevation = 6.dp,
-                    color = Color.Transparent
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Brush.linearGradient(listOf(Blue, Color(0xFF60A5FA)))),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = (user.fullName.ifEmpty { user.name }).take(2).uppercase(),
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-            }
-        }
-
         // Bottom Nav Bar — wrapped with navigationBarsPadding agar tidak tertutup sistem navigation bar (3-button)
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
             Box(modifier = Modifier.navigationBarsPadding()) {
                 BottomNavBar(
                     roles = user.roles.ifEmpty { listOf(user.role) },
                     currentRoute = currentRoute,
+                    userName = user.fullName.ifEmpty { user.name },
                     onNavigate = onNavigate
                 )
             }

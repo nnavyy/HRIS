@@ -35,6 +35,26 @@ class LeaveViewModel : ViewModel() {
 
     fun loadPending(departmentId: String = "") { viewModelScope.launch { _pending.value = repo.getPending(departmentId) } }
 
+    fun loadPendingForApprover(user: com.ptniger.hris.data.model.User) {
+        viewModelScope.launch {
+            val role = user.primaryRole.ifEmpty { user.role }
+            val empRepo = com.ptniger.hris.data.repository.EmployeeRepository()
+            val allEmployees = empRepo.getAll()
+            val managerEmp = allEmployees.find { it.userId == user.userId || it.employeeId == user.employeeId }
+            val empId = managerEmp?.employeeId ?: user.employeeId
+            val subordinateIds = com.ptniger.hris.utils.HierarchyHelper.getSubordinateEmployeeIds(user, managerEmp, allEmployees)
+            val dept = managerEmp?.department?.ifEmpty { user.departmentId } ?: user.departmentId
+
+            _pending.value = repo.getPendingForApprover(
+                currentUserEmployeeId = empId,
+                currentRole = role,
+                managerUserId = user.userId,
+                departmentId = dept,
+                subordinateIds = subordinateIds
+            )
+        }
+    }
+
     fun loadPendingForApprover(employeeId: String, role: String) {
         viewModelScope.launch {
             _pending.value = repo.getPendingForApprover(employeeId, role)
@@ -66,6 +86,24 @@ class LeaveViewModel : ViewModel() {
         }
     }
 
+    fun approve(leaveId: String, approverUser: com.ptniger.hris.data.model.User) {
+        viewModelScope.launch {
+            repo.approve(leaveId, approverUser.userId).fold(
+                onSuccess = { _message.value = "Pengajuan cuti disetujui"; loadPendingForApprover(approverUser) },
+                onFailure = { _message.value = "Error: ${it.message}" }
+            )
+        }
+    }
+
+    fun reject(leaveId: String, approverUser: com.ptniger.hris.data.model.User, reason: String = "") {
+        viewModelScope.launch {
+            repo.reject(leaveId, approverUser.userId, reason).fold(
+                onSuccess = { _message.value = "Pengajuan cuti ditolak"; loadPendingForApprover(approverUser) },
+                onFailure = { _message.value = "Error: ${it.message}" }
+            )
+        }
+    }
+
     fun approve(leaveId: String, approver: String) {
         viewModelScope.launch {
             repo.approve(leaveId, approver).fold(
@@ -75,9 +113,9 @@ class LeaveViewModel : ViewModel() {
         }
     }
 
-    fun reject(leaveId: String, approver: String) {
+    fun reject(leaveId: String, approver: String, reason: String = "") {
         viewModelScope.launch {
-            repo.reject(leaveId, approver).fold(
+            repo.reject(leaveId, approver, reason).fold(
                 onSuccess = { _message.value = "Cuti ditolak"; loadPending() },
                 onFailure = { _message.value = "Error: ${it.message}" }
             )

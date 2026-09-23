@@ -199,22 +199,20 @@ class PayrollRepository {
         } catch (e: Exception) { Result.failure(e) }
     }
 
-    suspend fun getTeamPayrolls(managerId: String): List<Payroll> {
+    suspend fun getTeamPayrolls(
+        managerEmployeeId: String,
+        managerUserId: String = "",
+        departmentId: String = "",
+        subordinateEmpIds: Set<String> = emptySet()
+    ): List<Payroll> {
         return try {
-            // First, get payrolls assigned to this manager
-            val byManager = col.whereEqualTo("managerId", managerId)
-                .get().await().documents.mapNotNull {
-                    it.toObject(Payroll::class.java)?.copy(payrollId = it.id)
-                }
-            
-            // Also get all pending_approval payrolls (in case managerId wasn't set)
-            val pendingApproval = col.whereEqualTo("status", Constants.PayrollStatus.PENDING_APPROVAL)
-                .get().await().documents.mapNotNull {
-                    it.toObject(Payroll::class.java)?.copy(payrollId = it.id)
-                }
-            
-            // Combine and deduplicate
-            (byManager + pendingApproval).distinctBy { it.payrollId }
+            val all = getAll()
+            all.filter { p ->
+                (subordinateEmpIds.isNotEmpty() && p.employeeId in subordinateEmpIds) ||
+                (managerEmployeeId.isNotEmpty() && p.managerId.equals(managerEmployeeId, ignoreCase = true)) ||
+                (managerUserId.isNotEmpty() && p.managerId.equals(managerUserId, ignoreCase = true)) ||
+                (departmentId.isNotEmpty() && p.departmentId.equals(departmentId, ignoreCase = true))
+            }
         } catch (e: Exception) { emptyList() }
     }
 

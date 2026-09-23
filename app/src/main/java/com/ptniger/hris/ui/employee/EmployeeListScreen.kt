@@ -15,8 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ptniger.hris.data.model.Employee
+import com.ptniger.hris.data.model.EmployeePresence
 import com.ptniger.hris.data.model.User
+import com.ptniger.hris.ui.components.PresenceBadge
+import com.ptniger.hris.ui.components.PresenceBadgeSize
 import com.ptniger.hris.ui.theme.*
+import com.ptniger.hris.utils.PresenceResolver
 
 @Composable
 fun EmployeeListScreen(
@@ -89,40 +94,12 @@ fun EmployeeListScreen(
 
         LazyColumn(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filtered) { emp ->
-                Surface(shape = RoundedCornerShape(22.dp), color = Surface, shadowElevation = 1.dp,
-                    modifier = Modifier.fillMaxWidth().clickable { 
-                        if (isManager) {
-                            onNavigateToDetail(emp.employeeId)
-                        } else {
-                            onNavigateToForm(emp.employeeId)
-                        }
-                    }) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(16.dp)).background(BlueSoft), contentAlignment = Alignment.Center) {
-                            Text(emp.name.take(2).uppercase(), style = MaterialTheme.typography.labelMedium, color = Blue)
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(emp.name, style = MaterialTheme.typography.titleSmall)
-                            Text("${emp.nik} · ${emp.department} · ${emp.branch}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                        }
-                        Surface(shape = RoundedCornerShape(999.dp), color = if (emp.employmentStatus == "active") GreenSoft else OrangeSoft) {
-                            Text(
-                                if (emp.employmentStatus == "active") "Aktif" else "Probasi",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (emp.employmentStatus == "active") Green else Orange
-                            )
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = TextMuted,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+                EmployeeCardWithPresence(
+                    employee = emp,
+                    isManager = isManager,
+                    onNavigateToDetail = onNavigateToDetail,
+                    onNavigateToForm = onNavigateToForm
+                )
             }
             if (filtered.isEmpty()) {
                 item {
@@ -230,3 +207,60 @@ fun EmployeeListScreen(
     } // Box
 } // EmployeeListScreen
 
+/**
+ * PRES-05: Employee card dengan presence badge (lazy loaded).
+ * Badge di-fetch saat card di-render (scroll ke viewport).
+ */
+@Composable
+fun EmployeeCardWithPresence(
+    employee: Employee,
+    isManager: Boolean,
+    onNavigateToDetail: (String) -> Unit,
+    onNavigateToForm: (String) -> Unit
+) {
+    var presence by remember { mutableStateOf<EmployeePresence?>(null) }
+
+    // Hanya fetch presence saat composable ini benar-benar ditampilkan di layar
+    LaunchedEffect(employee.employeeId) {
+        kotlinx.coroutines.delay(100)  // small delay untuk hindari fetch semua sekaligus
+        presence = PresenceResolver.resolveToday(employee)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(22.dp), color = Surface, shadowElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth().clickable {
+            if (isManager) onNavigateToDetail(employee.employeeId)
+            else onNavigateToForm(employee.employeeId)
+        }
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Avatar
+            Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(BlueSoft),
+                contentAlignment = Alignment.Center) {
+                Text(employee.name.take(2).uppercase(),
+                    style = MaterialTheme.typography.titleSmall, color = Blue)
+            }
+            Spacer(Modifier.width(12.dp))
+
+            // Info utama
+            Column(Modifier.weight(1f)) {
+                Text(employee.name, style = MaterialTheme.typography.titleSmall)
+                Text("${employee.position} · ${employee.department}",
+                    style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                // Presence badge dalam satu baris
+                Row(
+                    Modifier.padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Presence badge (compact)
+                    presence?.let {
+                        PresenceBadge(status = it.presenceStatus, size = PresenceBadgeSize.COMPACT)
+                    }
+                }
+            }
+
+            Icon(Icons.Default.ChevronRight, null, tint = TextMuted)
+        }
+    }
+}

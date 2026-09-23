@@ -20,6 +20,91 @@ object SeedDataManager {
 
     private val db = FirebaseFirestore.getInstance()
 
+    // ── PRESERVED ACCOUNTS (not deleted on reset) ─────────────────────
+    private val preservedEmails = listOf(
+        "akungweh54@gmail.com",
+        "nandazhafran@gmail.com",
+        "driveperson69420@gmail.com",
+        "akunsayananda0@gmail.com"
+    )
+
+    // All Firestore collections managed by this app
+    private val allCollections = listOf(
+        Constants.Collections.EMPLOYEES,
+        Constants.Collections.ATTENDANCE,
+        Constants.Collections.LEAVE_REQUESTS,
+        Constants.Collections.PAYROLLS,
+        Constants.Collections.KPI_CONFIGS,
+        Constants.Collections.KPI_SCORES,
+        Constants.Collections.PEER_REVIEWS,
+        Constants.Collections.AI_REVIEWS,
+        Constants.Collections.EMPLOYEE_CONTRACTS,
+        Constants.Collections.WORK_SCHEDULES,
+        Constants.Collections.LEAVE_POLICIES,
+        Constants.Collections.OFFICE_LOCATIONS,
+        Constants.Collections.NOTIFICATIONS,
+        Constants.Collections.AUDIT_LOGS,
+        Constants.Collections.AUTOMATION_RULES,
+        Constants.Collections.APP_CONFIGS,
+        Constants.Collections.EMAIL_QUEUE
+    )
+
+    // ── RESET ALL ────────────────────────────────────────────────────────
+    /**
+     * Hapus semua data di Firestore, kecuali akun inti (preservedEmails).
+     * @param includeUsers jika true, juga hapus collection `users` (kecuali akun inti)
+     * @param onProgress callback per-collection: (collectionName, deletedCount)
+     */
+    suspend fun resetAll(
+        includeUsers: Boolean = false,
+        onProgress: suspend (collection: String, deleted: Int) -> Unit = { _, _ -> }
+    ): SeedResult {
+        val errors = mutableListOf<String>()
+        var totalDeleted = 0
+
+        val collections = if (includeUsers) allCollections + Constants.Collections.USERS else allCollections
+
+        for (colName in collections) {
+            try {
+                val snapshot = db.collection(colName).get().await()
+                var count = 0
+                for (doc in snapshot.documents) {
+                    // Preserve core accounts
+                    if ((colName == Constants.Collections.USERS || colName == Constants.Collections.EMPLOYEES)
+                        && preservedEmails.contains(doc.getString("email"))) {
+                        continue
+                    }
+                    doc.reference.delete().await()
+                    count++
+                }
+                totalDeleted += count
+                onProgress(colName, count)
+            } catch (e: Exception) {
+                errors.add("$colName: ${e.message}")
+            }
+        }
+
+        return SeedResult(totalDeleted, errors)
+    }
+
+    // ── RESET + GENERATE (one-click) ────────────────────────────────────
+    suspend fun resetAndSeedAll(
+        includeUsers: Boolean = false,
+        onProgress: suspend (step: String) -> Unit = {}
+    ): SeedResult {
+        onProgress("Menghapus semua data...")
+        val resetResult = resetAll(includeUsers)
+        if (resetResult.errors.isNotEmpty()) {
+            return SeedResult(0, resetResult.errors.map { "RESET: $it" })
+        }
+        onProgress("Menggenerate data baru...")
+        val seedResult = seedAll()
+        return SeedResult(
+            seedResult.inserted,
+            seedResult.errors.map { "SEED: $it" }
+        )
+    }
+
     // ── MAIN ENTRY POINT ─────────────────────────────────────────────────
     suspend fun seedAll(): SeedResult {
         val errors = mutableListOf<String>()
@@ -49,6 +134,86 @@ object SeedDataManager {
         try { totalInserted += seedNotifications(allEmployees) }       catch (e: Exception) { errors.add("notifications: ${e.message}") }
 
         return SeedResult(totalInserted, errors)
+    }
+
+    // ── SEED WITH PROGRESS ──────────────────────────────────────────────
+    suspend fun seedAllWithProgress(
+        onProgress: suspend (moduleName: String, count: Int) -> Unit
+    ): SeedResult {
+        val errors = mutableListOf<String>()
+        var totalInserted = 0
+
+        val allEmployees: List<EmpInfo>
+        try {
+            allEmployees = buildEmployeeList()
+        } catch (e: Exception) {
+            return SeedResult(0, listOf("FATAL: gagal fetch users: ${e.message}"))
+        }
+
+        data class SeedStep(val name: String, val action: suspend () -> Int)
+        val steps = listOf(
+            SeedStep("Office Locations") { seedOfficeLocations() },
+            SeedStep("Employees") { seedEmployeeRecords(allEmployees) },
+            SeedStep("Work Schedules") { seedWorkSchedules() },
+            SeedStep("Leave Policies") { seedLeavePolicy() },
+            SeedStep("Contracts") { seedContracts(allEmployees) },
+            SeedStep("Attendance (6 bulan)") { seedAttendance(allEmployees) },
+            SeedStep("Leave Requests") { seedLeaveRequests(allEmployees) },
+            SeedStep("KPI Configs") { seedKpiConfigs() },
+            SeedStep("KPI Scores") { seedKpiScores(allEmployees) },
+            SeedStep("Peer Reviews") { seedPeerReviews(allEmployees) },
+            SeedStep("Payrolls") { seedPayrolls(allEmployees) },
+            SeedStep("App Configs") { seedAppConfigs() },
+            SeedStep("Automation Rules") { seedAutomationRules() },
+            SeedStep("Notifications") { seedNotifications(allEmployees) },
+        )
+
+        for (step in steps) {
+            try {
+                val count = step.action()
+                totalInserted += count
+                onProgress(step.name, count)
+            } catch (e: Exception) {
+                errors.add("${step.name}: ${e.message}")
+                onProgress("❌ ${step.name}", 0)
+            }
+        }
+
+        return SeedResult(totalInserted, errors)
+    }
+
+    // ── PER-MODULE PUBLIC FUNCTIONS ──────────────────────────────────────
+    suspend fun seedModuleAttendance(): SeedResult = seedModule("Attendance") { seedAttendance(buildEmployeeList()) }
+    suspend fun seedModulePayroll(): SeedResult = seedModule("Payroll") { seedPayrolls(buildEmployeeList()) }
+    suspend fun seedModuleKpi(): SeedResult = seedModule("KPI") {
+        seedKpiConfigs() + seedKpiScores(buildEmployeeList())
+    }
+    suspend fun seedModulePeerReview(): SeedResult = seedModule("Peer Review") { seedPeerReviews(buildEmployeeList()) }
+    suspend fun seedModuleLeave(): SeedResult = seedModule("Leave") { seedLeaveRequests(buildEmployeeList()) }
+    suspend fun seedModuleContracts(): SeedResult = seedModule("Contracts") { seedContracts(buildEmployeeList()) }
+
+    private suspend fun seedModule(name: String, action: suspend () -> Int): SeedResult {
+        return try {
+            val count = action()
+            SeedResult(count, emptyList())
+        } catch (e: Exception) {
+            SeedResult(0, listOf("$name: ${e.message}"))
+        }
+    }
+
+    /** Hapus satu collection tertentu */
+    suspend fun resetCollection(collectionName: String): Int {
+        val snapshot = db.collection(collectionName).get().await()
+        var count = 0
+        for (doc in snapshot.documents) {
+            if ((collectionName == Constants.Collections.USERS || collectionName == Constants.Collections.EMPLOYEES)
+                && preservedEmails.contains(doc.getString("email"))) {
+                continue
+            }
+            doc.reference.delete().await()
+            count++
+        }
+        return count
     }
 
     data class SeedResult(val inserted: Int, val errors: List<String>)
@@ -683,6 +848,10 @@ object SeedDataManager {
             mapOf("configId" to "config_groq_api", "key" to "groq_api_key",
                 "value" to groqKey,
                 "description" to "API Key untuk engine Groq AI (Llama 3)",
+                "isSecret" to true, "updatedAt" to System.currentTimeMillis()),
+            mapOf("configId" to "config_weather_api", "key" to "weather_api_key",
+                "value" to "", // Super Admin fills this
+                "description" to "OpenWeatherMap API Key. Daftar gratis di openweathermap.org",
                 "isSecret" to true, "updatedAt" to System.currentTimeMillis())
         )
         // Use merge so we don't overwrite a manually-set key in Firestore

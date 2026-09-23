@@ -16,6 +16,7 @@ data class WorkSchedule(
     val scheduleId: String = "default",
     val name: String = "Jadwal Standar",
     val workDays: List<Int> = listOf(2, 3, 4, 5, 6),  // Calendar.MONDAY..FRIDAY
+    val wfhDays: List<Int> = emptyList(),              // Hari WFH (Calendar DAY_OF_WEEK), kosong = semua onsite
     val workStartTime: String = "08:00",
     val lateThreshold: String = "08:15",
     val earlyLeaveBuffer: String = "15:45",

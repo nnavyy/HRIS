@@ -41,4 +41,13 @@ class AppConfigRepository {
     suspend fun getGroqApiKey(): String {
         return getConfig("groq_api_key")?.value ?: ""
     }
+
+    suspend fun getWeatherApiKey(): String {
+        return getConfig("weather_api_key")?.value ?: "23468d31cf4d94514ea48dfa6873daeb"
+    }
+
+    suspend fun getWeatherApiKeyOrNull(): String? {
+        val key = getConfig("weather_api_key")?.value ?: "23468d31cf4d94514ea48dfa6873daeb"
+        return if (key.isBlank()) null else key
+    }
 }

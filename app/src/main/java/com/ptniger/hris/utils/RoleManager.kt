@@ -54,6 +54,9 @@ object RoleManager {
             }
         }
 
+        // ← Profil selalu jadi item TERAKHIR di semua role
+        items.add(NavItem("profile", "Profil", "person"))
+
         return items
     }
 

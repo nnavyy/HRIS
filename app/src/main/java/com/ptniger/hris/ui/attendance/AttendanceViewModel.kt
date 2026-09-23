@@ -106,104 +106,116 @@ class AttendanceViewModel : ViewModel() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, message = "Memproses absensi...")
             try {
-                val officeRepo = com.ptniger.hris.data.repository.OfficeLocationRepository()
-                val employeeRepo = com.ptniger.hris.data.repository.EmployeeRepository()
-                
-                // Resolve employee with multiple fallbacks
-                var employee = employeeRepo.getById(employeeId)
-                if (employee == null) {
-                    employee = employeeRepo.getByUserId(employeeId)
-                }
-                if (employee == null && userEmail.isNotEmpty()) {
-                    employee = employeeRepo.getByEmail(userEmail)
-                }
-                
-                var office: com.ptniger.hris.data.model.OfficeLocation? = null
-                if (employee?.officeId?.isNotEmpty() == true) {
-                    office = officeRepo.getById(employee.officeId)
-                }
-                
-                if (employee == null) {
-                    _state.value = _state.value.copy(message = "Akun Anda belum dihubungkan dengan data Karyawan. Hubungi HR untuk Integrasi Akun Sistem.", isLoading = false)
-                    return@launch
-                }
+                com.ptniger.hris.utils.TrafficLatencyGuard.runWithTrafficGuard("Absensi") {
+                    val officeRepo = com.ptniger.hris.data.repository.OfficeLocationRepository()
+                    val employeeRepo = com.ptniger.hris.data.repository.EmployeeRepository()
+                    
+                    // Resolve employee with multiple fallbacks
+                    var employee = employeeRepo.getById(employeeId)
+                    if (employee == null) {
+                        employee = employeeRepo.getByUserId(employeeId)
+                    }
+                    if (employee == null && userEmail.isNotEmpty()) {
+                        employee = employeeRepo.getByEmail(userEmail)
+                    }
+                    
+                    var office: com.ptniger.hris.data.model.OfficeLocation? = null
+                    if (employee?.officeId?.isNotEmpty() == true) {
+                        office = officeRepo.getById(employee.officeId)
+                    }
+                    
+                    if (employee == null) {
+                        _state.value = _state.value.copy(message = "Akun Anda belum dihubungkan dengan data Karyawan. Hubungi HR untuk Integrasi Akun Sistem.", isLoading = false)
+                        return@runWithTrafficGuard
+                    }
 
-                if (office == null) {
-                    val allOffices = officeRepo.getAll().filter { it.isActive }
-                    if (allOffices.isNotEmpty()) {
-                        // Fallback: Cari kantor terdekat dari lokasi pengguna saat ini
-                        var closestOffice = allOffices.first()
-                        var minDistance = Float.MAX_VALUE
-                        for (o in allOffices) {
-                            val results = FloatArray(1)
-                            android.location.Location.distanceBetween(latitude, longitude, o.latitude, o.longitude, results)
-                            if (results[0] < minDistance) {
-                                minDistance = results[0]
-                                closestOffice = o
+                    if (office == null) {
+                        val allOffices = officeRepo.getAll().filter { it.isActive }
+                        if (allOffices.isNotEmpty()) {
+                            // Fallback: Cari kantor terdekat dari lokasi pengguna saat ini
+                            var closestOffice = allOffices.first()
+                            var minDistance = Float.MAX_VALUE
+                            for (o in allOffices) {
+                                val results = FloatArray(1)
+                                android.location.Location.distanceBetween(latitude, longitude, o.latitude, o.longitude, results)
+                                if (results[0] < minDistance) {
+                                    minDistance = results[0]
+                                    closestOffice = o
+                                }
                             }
+                            office = closestOffice
+                        } else {
+                            _state.value = _state.value.copy(message = "Absensi gagal: Tidak ada lokasi kantor aktif di sistem. Harap tambahkan Lokasi Kantor terlebih dahulu.", isLoading = false)
+                            return@runWithTrafficGuard
                         }
-                        office = closestOffice
-                    } else {
-                        _state.value = _state.value.copy(message = "Absensi gagal: Tidak ada lokasi kantor aktif di sistem. Harap tambahkan Lokasi Kantor terlebih dahulu.", isLoading = false)
-                        return@launch
                     }
-                }
 
+                    val results = FloatArray(1)
+                    android.location.Location.distanceBetween(latitude, longitude, office.latitude, office.longitude, results)
+                    val distance = results[0]
 
-
-                val results = FloatArray(1)
-                android.location.Location.distanceBetween(latitude, longitude, office.latitude, office.longitude, results)
-                val distance = results[0]
-
-                if (distance > office.allowedRadiusMeters) {
-                    _state.value = _state.value.copy(message = "Absensi gagal: Anda berada di luar jangkauan (${distance.toInt()} meter). Harus dalam ${office.allowedRadiusMeters.toInt()} meter dari kantor.", isLoading = false)
-                    return@launch
-                }
-
-                // Use SERVER time instead of device time to prevent clock manipulation
-                val serverTimeMs = DateUtils.getServerTimeMillis()
-                val serverTime = DateUtils.formatTime(serverTimeMs)
-                val serverDate = DateUtils.formatDate(serverTimeMs)
-                val deviceTime = System.currentTimeMillis()
-                val timeDiffMs = Math.abs(deviceTime - serverTimeMs)
-                val isTimeTampered = timeDiffMs > 2 * 60 * 1000 // > 2 minutes difference
-
-                val resolvedEmpId = employee.employeeId
-                
-                val attendance = Attendance(
-                    employeeId = resolvedEmpId,
-                    date = serverDate,
-                    clockType = clockType,
-                    checkIn = if (clockType == Constants.AttendanceType.CLOCK_IN) serverTime else "",
-                    checkOut = if (clockType == Constants.AttendanceType.CLOCK_OUT) serverTime else "",
-                    latitude = latitude,
-                    longitude = longitude,
-                    isMockLocation = isMockDetected,
-                    serverTimestamp = serverTimeMs,
-                    deviceTimestamp = deviceTime,
-                    isTimeTampered = isTimeTampered,
-                    checkInMode = checkInMode,
-                    faceRecognitionSimilarity = faceRecognitionSimilarity,
-                    livenessVerified = livenessVerified
-                )
-
-                repo.submitAttendance(attendance, imageUri, office, context).fold(
-                    onSuccess = {
-                        val tamperedWarning = if (isTimeTampered) "\n⚠️ Peringatan: Jam perangkat Anda tidak sesuai dengan waktu server." else ""
-                        _state.value = _state.value.copy(message = "Absensi berhasil! (Waktu: $serverTime)$tamperedWarning", isLoading = false)
-                        loadTodayAttendance(resolvedEmpId)
-                    },
-                    onFailure = {
-                        _state.value = _state.value.copy(message = "Gagal: ${it.message ?: it.javaClass.simpleName}", isLoading = false)
+                    if (distance > office.allowedRadiusMeters) {
+                        _state.value = _state.value.copy(message = "Absensi gagal: Anda berada di luar jangkauan (${distance.toInt()} meter). Harus dalam ${office.allowedRadiusMeters.toInt()} meter dari kantor.", isLoading = false)
+                        return@runWithTrafficGuard
                     }
-                )
+
+                    // Validasi Keras Anti-Manipulasi Jam (Anti-Time Tampering Protection)
+                    val serverTimeMs = DateUtils.getServerTimeMillis()
+                    val deviceTime = System.currentTimeMillis()
+                    val timeDiffMs = Math.abs(deviceTime - serverTimeMs)
+                    val isTimeTampered = timeDiffMs > 3 * 60 * 1000 // Selisih > 3 menit
+
+                    if (isTimeTampered) {
+                        val diffMinutes = timeDiffMs / (60 * 1000)
+                        _state.value = _state.value.copy(
+                            message = "⛔ Absensi DITOLAK: Jam ponsel Anda tidak sinkron (selisih $diffMinutes menit dari server resmi). Silakan aktifkan opsi 'Tanggal & Waktu Otomatis' di Pengaturan HP Anda.",
+                            isLoading = false
+                        )
+                        return@runWithTrafficGuard
+                    }
+
+                    // Waktu dan tanggal 100% dikunci ke Zona Waktu Resmi Kantor Cabang Terkait (WIB / WITA / WIT)
+                    val officeTz = DateUtils.resolveTimeZone(office.timeZone)
+                    val tzLabel = DateUtils.getTimeZoneLabel(officeTz)
+                    val serverTime = DateUtils.formatTime(serverTimeMs, officeTz)
+                    val serverDate = DateUtils.formatDate(serverTimeMs, officeTz)
+
+                    val resolvedEmpId = employee.employeeId
+                    
+                    val attendance = Attendance(
+                        employeeId = resolvedEmpId,
+                        date = serverDate,
+                        clockType = clockType,
+                        checkIn = if (clockType == Constants.AttendanceType.CLOCK_IN) serverTime else "",
+                        checkOut = if (clockType == Constants.AttendanceType.CLOCK_OUT) serverTime else "",
+                        latitude = latitude,
+                        longitude = longitude,
+                        isMockLocation = isMockDetected,
+                        serverTimestamp = serverTimeMs,
+                        deviceTimestamp = deviceTime,
+                        isTimeTampered = false,
+                        checkInMode = checkInMode,
+                        faceRecognitionSimilarity = faceRecognitionSimilarity,
+                        livenessVerified = livenessVerified
+                    )
+
+                    repo.submitAttendance(attendance, imageUri, office, context).fold(
+                        onSuccess = {
+                            _state.value = _state.value.copy(message = "Absensi berhasil! (Waktu Server: $serverTime $tzLabel - Kantor: ${office.name})", isLoading = false)
+                            loadTodayAttendance(resolvedEmpId)
+                        },
+                        onFailure = {
+                            _state.value = _state.value.copy(message = "Gagal: ${it.message ?: it.javaClass.simpleName}", isLoading = false)
+                        }
+                    )
+                }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(message = "Error: ${e.message ?: e.javaClass.simpleName}", isLoading = false)
             }
         }
     }
 
-    fun loadAllToday(userId: String = "", departmentId: String = "") {
+    fun loadAllToday(userId: String = "", departmentId: String = "", userObj: com.ptniger.hris.data.model.User? = null) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             var list = repo.getAllToday()
@@ -213,10 +225,10 @@ class AttendanceViewModel : ViewModel() {
             // Map employeeId to Name
             val namesMap = allEmps.associate { it.employeeId to it.name }
             
-            if (userId.isNotEmpty() || departmentId.isNotEmpty()) {
-                val teamIds = allEmps.filter {
-                    it.managerId == userId || (departmentId.isNotEmpty() && it.department.equals(departmentId, ignoreCase = true))
-                }.map { it.employeeId }.toSet()
+            if (userId.isNotEmpty() || departmentId.isNotEmpty() || userObj != null) {
+                val mgrUser = userObj ?: com.ptniger.hris.data.model.User(userId = userId, departmentId = departmentId)
+                val mgrEmp = allEmps.find { it.userId == userId }
+                val teamIds = com.ptniger.hris.utils.HierarchyHelper.getSubordinateEmployeeIds(mgrUser, mgrEmp, allEmps)
                 
                 list = list.filter { it.employeeId in teamIds }
             }

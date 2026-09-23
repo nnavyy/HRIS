@@ -157,30 +157,68 @@ fun KpiScoringScreen(user: User, onBack: () -> Unit = {}, vm: KpiViewModel = vie
                             val existingScore = scores.find { it.configId == cfg.configId }
                             val isAuto = existingScore?.source == "auto"
                             Column {
+                                // Header baris: nama KPI + badge auto/manual
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("${cfg.kpiName} (${(cfg.weight * 100).toInt()}%)", style = MaterialTheme.typography.labelMedium)
+                                    Text(
+                                        text = cfg.kpiName,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Surface(shape = RoundedCornerShape(6.dp), color = BlueSoft) {
+                                        Text(
+                                            text = "Bobot ${(cfg.weight * 100).toInt()}%",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Blue
+                                        )
+                                    }
                                     if (existingScore != null) {
-                                        Surface(shape = RoundedCornerShape(4.dp), color = if (isAuto) GreenSoft else BlueSoft) {
+                                        Surface(shape = RoundedCornerShape(6.dp), color = if (isAuto) GreenSoft else OrangeSoft) {
                                             Text(
-                                                if (isAuto) "⚡ Auto" else "✏ Manual",
+                                                if (isAuto) "Auto" else "Manual",
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = if (isAuto) Green else Blue
+                                                color = if (isAuto) Green else Orange
                                             )
                                         }
                                     }
                                 }
+                                // Deskripsi KPI jika ada
+                                if (cfg.description.isNotBlank()) {
+                                    Text(
+                                        text = cfg.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
+                                }
                                 if (isAuto && existingScore?.autoDetails?.isNotEmpty() == true) {
                                     Text(existingScore.autoDetails, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                                 }
-                                Spacer(Modifier.height(4.dp))
+                                Spacer(Modifier.height(6.dp))
                                 OutlinedTextField(
                                     value = scoreInputs[cfg.configId] ?: "",
                                     onValueChange = { scoreInputs[cfg.configId] = it },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(16.dp),
                                     singleLine = true,
-                                    readOnly = isAuto // If auto, user cannot manually edit it here easily
+                                    readOnly = isAuto,
+                                    label = {
+                                        Text("Skor ${cfg.kpiName}")
+                                    },
+                                    placeholder = {
+                                        Text("0 - 100")
+                                    },
+                                    supportingText = if (existingScore != null) ({
+                                        Text(
+                                            "Skor saat ini: ${existingScore.score}" +
+                                                    if (existingScore.weightedScore > 0.0) " · Nilai tertimbang: ${String.format("%.1f", existingScore.weightedScore)}" else "",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = TextMuted
+                                        )
+                                    }) else null,
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                                    )
                                 )
                             }
                         }

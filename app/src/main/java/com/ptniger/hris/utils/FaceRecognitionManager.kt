@@ -120,13 +120,65 @@ object FaceRecognitionManager {
     }
 
     /**
+     * Jenis tantangan acak untuk Active Liveness Detection (Anti-Spoofing).
+     * Mencegah pemakaian foto cetak atau video layar HP orang lain.
+     */
+    enum class LivenessChallengeType(val instruction: String, val hint: String) {
+        TURN_LEFT("Tolehkan kepala sedikit ke KIRI", "Arahkan wajah ke kiri Anda"),
+        TURN_RIGHT("Tolehkan kepala sedikit ke KANAN", "Arahkan wajah ke kanan Anda"),
+        SMILE("Tersenyum ke kamera", "Tunjukkan senyum Anda"),
+        BLINK("Kedipkan kedua mata", "Tutup mata sejenak lalu buka")
+    }
+
+    fun getRandomChallenge(): LivenessChallengeType {
+        val challenges = listOf(
+            LivenessChallengeType.TURN_LEFT,
+            LivenessChallengeType.TURN_RIGHT,
+            LivenessChallengeType.SMILE
+        )
+        return challenges.random()
+    }
+
+    /**
+     * Memverifikasi apakah wajah pengguna memenuhi tantangan liveness aktif yang diminta.
+     */
+    fun verifyChallenge(face: Face, challenge: LivenessChallengeType): Boolean {
+        return when (challenge) {
+            LivenessChallengeType.TURN_LEFT -> isTurningLeft(face)
+            LivenessChallengeType.TURN_RIGHT -> isTurningRight(face)
+            LivenessChallengeType.SMILE -> isSmiling(face)
+            LivenessChallengeType.BLINK -> isBlinking(face)
+        }
+    }
+
+    fun isTurningLeft(face: Face): Boolean {
+        // Pada kamera depan, toleh ke kiri user biasanya menghasilkan sudut Y negatif
+        return face.headEulerAngleY < -12f
+    }
+
+    fun isTurningRight(face: Face): Boolean {
+        return face.headEulerAngleY > 12f
+    }
+
+    fun isSmiling(face: Face): Boolean {
+        val smile = face.smilingProbability ?: 0f
+        return smile > 0.60f
+    }
+
+    fun isFaceForward(face: Face): Boolean {
+        val y = kotlin.math.abs(face.headEulerAngleY)
+        val z = kotlin.math.abs(face.headEulerAngleZ)
+        return y < 10f && z < 10f
+    }
+
+    /**
      * Liveness check: cek apakah user sudah berkedip.
      * ML Kit memberikan `leftEyeOpenProbability` dan `rightEyeOpenProbability` (0.0-1.0).
-     * Blink terdeteksi ketika keduanya < 0.4 (mata tertutup).
+     * Blink terdeteksi ketika keduanya < 0.35 (mata tertutup).
      */
     fun isBlinking(face: Face): Boolean {
         val leftOpen  = face.leftEyeOpenProbability ?: 1f
         val rightOpen = face.rightEyeOpenProbability ?: 1f
-        return leftOpen < 0.4f && rightOpen < 0.4f
+        return leftOpen < 0.35f && rightOpen < 0.35f
     }
 }

@@ -78,6 +78,18 @@ class LoginViewModel : ViewModel() {
         authRepo.logout()
         _uiState.value = LoginUiState(isRestoringSession = false)
     }
+
+    /** Re-fetch user data dari Firestore (setelah onboarding selesai, dll) */
+    fun refreshCurrentUser() {
+        viewModelScope.launch {
+            authRepo.getCurrentUserData().fold(
+                onSuccess = { user ->
+                    _uiState.value = _uiState.value.copy(loggedInUser = user)
+                },
+                onFailure = { /* ignore */ }
+            )
+        }
+    }
 }
 
 data class LoginUiState(

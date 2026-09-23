@@ -82,6 +82,99 @@ fun AppConfigScreen(onBack: () -> Unit, vm: AppConfigViewModel = viewModel()) {
             configs.forEach { config ->
                 AppConfigItem(config = config, onSave = { newValue -> vm.updateConfig(config, newValue) })
             }
+            
+            // ── WEATHER API CONFIG ──
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
+            
+            Column(Modifier.padding(horizontal = 18.dp)) {
+                Text("Cuaca & Lokasi", style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 8.dp))
+                
+                var weatherKey by remember { mutableStateOf("") }
+                var weatherKeyVisible by remember { mutableStateOf(false) }
+                var weatherKeyStatus by remember { mutableStateOf<String?>(null) }
+                val scope = rememberCoroutineScope()
+                
+                LaunchedEffect(Unit) {
+                    val existing = AppConfigRepository().getWeatherApiKey()
+                    if (existing.isNotBlank()) weatherKey = existing
+                }
+                
+                OutlinedTextField(
+                    value = weatherKey,
+                    onValueChange = { weatherKey = it },
+                    label = { Text("OpenWeatherMap API Key") },
+                    placeholder = { Text("Masukkan API key") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    visualTransformation = if (weatherKeyVisible) VisualTransformation.None
+                                           else PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { weatherKeyVisible = !weatherKeyVisible }) {
+                            Icon(if (weatherKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, null)
+                        }
+                    }
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                weatherKeyStatus = "Memeriksa..."
+                                try {
+                                    val repo = com.ptniger.hris.data.repository.WeatherRepository()
+                                    val result = repo.fetchCurrentWeather(-6.9932, 110.4203, weatherKey)
+                                    if (result != null) {
+                                        weatherKeyStatus = "✅ Berhasil: ${result.description}, ${result.tempCelsius.toInt()}°C"
+                                    } else {
+                                        weatherKeyStatus = "❌ Gagal — periksa API key"
+                                    }
+                                } catch (e: Exception) {
+                                    weatherKeyStatus = "❌ Gagal — periksa API key"
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = weatherKey.isNotBlank()
+                    ) { Text("Test") }
+                
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                AppConfigRepository().saveConfig(AppConfig(
+                                    key = "weather_api_key",
+                                    value = weatherKey,
+                                    description = "OpenWeatherMap API Key untuk fitur greeting cuaca",
+                                    isSecret = true
+                                ))
+                                weatherKeyStatus = "✅ API key tersimpan"
+                                vm.loadConfigs()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = weatherKey.isNotBlank(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) { Text("Simpan") }
+                }
+                
+                weatherKeyStatus?.let {
+                    Text(it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (it.startsWith("✅")) Green else Red,
+                        modifier = Modifier.padding(top = 4.dp))
+                }
+                
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "API key dari openweathermap.org. Digunakan untuk greeting cuaca di dashboard dan verifikasi lokasi absensi.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+            }
         }
         Spacer(Modifier.height(100.dp))
     }

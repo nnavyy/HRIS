@@ -105,7 +105,16 @@ class EmployeeRepository {
 
     suspend fun updateLeaveQuota(id: String, newQuota: Int): Result<Unit> {
         return try {
-            col.document(id).update("leaveQuota", newQuota).await()
+            val docRef = col.document(id)
+            val docSnap = docRef.get().await()
+            if (docSnap.exists()) {
+                docRef.update("leaveQuota", newQuota).await()
+            } else {
+                val q1 = col.whereEqualTo("employeeId", id).get().await()
+                val targetDoc = q1.documents.firstOrNull() 
+                    ?: col.whereEqualTo("userId", id).get().await().documents.firstOrNull()
+                targetDoc?.reference?.update("leaveQuota", newQuota)?.await()
+            }
             Result.success(Unit)
         } catch (e: Exception) { Result.failure(e) }
     }

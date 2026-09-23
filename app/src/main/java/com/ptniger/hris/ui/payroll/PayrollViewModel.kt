@@ -61,13 +61,26 @@ class PayrollViewModel : ViewModel() {
             val allEmployees = employeeRepo.getAll()
             val employee = allEmployees.find { it.employeeId == empId || it.nik == empId }
             val realEmpId = employee?.employeeId ?: empId
-            val managerId = employee?.managerId ?: ""
+            val departmentId = employee?.department ?: ""
+            val empManagerId = employee?.managerId ?: ""
+            val resolvedManagerId = if (empManagerId.isNotEmpty()) empManagerId else {
+                com.ptniger.hris.utils.HierarchyHelper.resolveManagerForEmployee(employee ?: com.ptniger.hris.data.model.Employee(), allEmployees, emptyList())?.employeeId ?: ""
+            }
 
-            // Calculate auto overtime if not manually specified
+            // Calculate auto overtime with SPKL (Surat Perintah Kerja Lembur) reconciliation
             var finalOtHours = manualOtHours
             if (finalOtHours <= 0.0) {
+                val overtimeRepo = com.ptniger.hris.data.repository.OvertimeRepository()
+                val spklHours = overtimeRepo.getApprovedOvertimeHoursForMonth(realEmpId, DateUtils.currentMonth(), DateUtils.currentYear())
                 val attendances = attendanceRepo.getMonthlyAttendance(realEmpId, DateUtils.currentMonth(), DateUtils.currentYear())
-                finalOtHours = attendances.sumOf { it.overtimeHours }
+                val attendanceOtHours = attendances.sumOf { it.overtimeHours }
+
+                // Rekonsiliasi Tiga Arah: jam diakui = min(jam fisik absensi, jam persetujuan atasan di SPKL)
+                finalOtHours = if (spklHours > 0.0) {
+                    if (attendanceOtHours > 0.0) minOf(attendanceOtHours, spklHours) else spklHours
+                } else {
+                    attendanceOtHours
+                }
             }
 
             val kpiScore = com.ptniger.hris.data.repository.KpiRepository().getTotalWeightedScore(realEmpId, DateUtils.currentPeriod())
@@ -84,7 +97,8 @@ class PayrollViewModel : ViewModel() {
                 employeeId = realEmpId, employeeName = empName, month = DateUtils.currentMonth(), year = DateUtils.currentYear(),
                 baseSalary = base, allowance = allow, overtimeHours = finalOtHours, overtimePay = otPay, kpiScore = kpiScore, kpiBonus = kpiBonus,
                 bpjsKesehatan = bpjsKes, bpjsJht = bpjsJht, bpjsJp = bpjsJp, deductions = ded, netSalary = net,
-                managerId = managerId
+                managerId = resolvedManagerId,
+                departmentId = departmentId
             )
             
             repo.generateRaw(payroll).fold(
@@ -97,22 +111,62 @@ class PayrollViewModel : ViewModel() {
     fun requestApproval(payrollId: String, financeId: String) {
         viewModelScope.launch {
             repo.requestApproval(payrollId, financeId).fold(
-                onSuccess = { _message.value = "Persetujuan diajukan"; loadAll() },
+                onSuccess = { _message.value = "Persetujuan diajukan ke Manajer"; loadAll() },
                 onFailure = { _message.value = "Error: ${it.message}" }
             )
         }
     }
 
-    fun getTeamPayrolls(managerId: String) {
+    fun getTeamPayrolls(user: com.ptniger.hris.data.model.User) {
         viewModelScope.launch {
-            _payrolls.value = repo.getTeamPayrolls(managerId)
+            val allEmployees = empRepo.getAll()
+            val managerEmp = allEmployees.find { it.userId == user.userId || it.employeeId == user.employeeId }
+            val subordinateEmpIds = com.ptniger.hris.utils.HierarchyHelper.getSubordinateEmployeeIds(user, managerEmp, allEmployees)
+            val managerEmployeeId = managerEmp?.employeeId ?: user.employeeId
+            val managerDept = managerEmp?.department?.ifEmpty { user.departmentId } ?: user.departmentId
+
+            _payrolls.value = repo.getTeamPayrolls(
+                managerEmployeeId = managerEmployeeId,
+                managerUserId = user.userId,
+                departmentId = managerDept,
+                subordinateEmpIds = subordinateEmpIds
+            )
+        }
+    }
+
+    fun getTeamPayrolls(userId: String) {
+        viewModelScope.launch {
+            val allEmployees = empRepo.getAll()
+            val managerEmp = allEmployees.find { it.userId == userId || it.employeeId == userId }
+            val managerEmployeeId = managerEmp?.employeeId ?: userId
+            val dummyUser = com.ptniger.hris.data.model.User(userId = userId, employeeId = managerEmployeeId, departmentId = managerEmp?.department ?: "")
+            val subordinateEmpIds = com.ptniger.hris.utils.HierarchyHelper.getSubordinateEmployeeIds(dummyUser, managerEmp, allEmployees)
+
+            _payrolls.value = repo.getTeamPayrolls(
+                managerEmployeeId = managerEmployeeId,
+                managerUserId = userId,
+                departmentId = managerEmp?.department ?: "",
+                subordinateEmpIds = subordinateEmpIds
+            )
+        }
+    }
+
+    fun processApproval(payrollId: String, managerUser: com.ptniger.hris.data.model.User, isApproved: Boolean, notes: String) {
+        viewModelScope.launch {
+            repo.processApproval(payrollId, managerUser.userId, isApproved, notes).fold(
+                onSuccess = { 
+                    _message.value = if(isApproved) "Payroll disetujui" else "Payroll ditolak dengan catatan: $notes"
+                    getTeamPayrolls(managerUser)
+                },
+                onFailure = { _message.value = "Error: ${it.message}" }
+            )
         }
     }
 
     fun processApproval(payrollId: String, managerId: String, isApproved: Boolean, notes: String) {
         viewModelScope.launch {
             repo.processApproval(payrollId, managerId, isApproved, notes).fold(
-                onSuccess = { _message.value = if(isApproved) "Disetujui" else "Ditolak"; getTeamPayrolls(managerId) },
+                onSuccess = { _message.value = if(isApproved) "Payroll disetujui" else "Payroll ditolak"; getTeamPayrolls(managerId) },
                 onFailure = { _message.value = "Error: ${it.message}" }
             )
         }

@@ -1,5 +1,6 @@
 package com.ptniger.hris.ui.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,16 +18,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ptniger.hris.data.model.User
+import com.ptniger.hris.data.model.EmployeePresence
 import com.ptniger.hris.data.repository.ContractRepository
+import com.ptniger.hris.data.repository.EmployeeRepository
+import com.ptniger.hris.ui.components.PresenceBadge
+import com.ptniger.hris.ui.components.PresenceBadgeSize
+import com.ptniger.hris.ui.components.WeeklyScheduleRow
+import com.ptniger.hris.ui.components.WeatherGreetingWidget
+import com.ptniger.hris.ui.components.InfoChip
 import com.ptniger.hris.ui.theme.*
-import com.ptniger.hris.utils.SeedDataManager
+import com.ptniger.hris.utils.DateUtils
+import com.ptniger.hris.utils.PresenceResolver
 import kotlinx.coroutines.launch
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.tasks.await
 import com.ptniger.hris.utils.AppUpdateChecker
 import com.ptniger.hris.utils.AppUpdateInfo
 import com.ptniger.hris.BuildConfig
@@ -37,39 +44,43 @@ fun HrDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardVie
     val s by vm.state.collectAsState()
 
     DashboardLayout(title = "Dashboard HR", subtitle = "HRIS Portal · ${user.fullName.ifEmpty { user.name }}", user = user) {
-        Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Total Karyawan", "${s.totalEmployees}", "Semua karyawan", Icons.Default.People, BlueSoft, Blue)
-            MetricCard(Modifier.weight(1f), "Approval Pending", "${s.pendingApprovals}", "Cuti & izin", Icons.Default.Inbox, OrangeSoft, Orange)
+        if (s.isLoading) {
+            com.ptniger.hris.ui.components.DashboardSkeleton()
+        } else {
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(Modifier.weight(1f), "Total Karyawan", "${s.totalEmployees}", "Semua karyawan", Icons.Default.People, BlueSoft, Blue)
+                MetricCard(Modifier.weight(1f), "Approval Pending", "${s.pendingApprovals}", "Cuti & izin", Icons.Default.Inbox, OrangeSoft, Orange)
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(Modifier.weight(1f), "Hadir Hari Ini", "${s.presentToday}", "Kehadiran", Icons.Default.CheckCircle, GreenSoft, Green)
+                MetricCard(Modifier.weight(1f), "KPI Config", "Aktif", "Kelola KPI", Icons.Default.Star, PurpleSoft, Purple)
+            }
+            Spacer(Modifier.height(16.dp))
+            MyMenuSection(onNavigate)
+            Spacer(Modifier.height(16.dp))
+            Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Data Karyawan", Icons.Default.People, BlueSoft, Blue) { onNavigate("employees") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Konfigurasi KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_config") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("AI Review Kinerja", Icons.Default.Psychology, PurpleSoft, Purple) { onNavigate("ai_review") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Buat Kontrak", Icons.Default.Description, TealSoft, Teal) { onNavigate("contract_form") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Jadwal Kerja", Icons.Default.Schedule, GreenSoft, Green) { onNavigate("work_schedule_config") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Kebijakan Cuti", Icons.Default.Policy, RedSoft, Red) { onNavigate("leave_policy") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Lokasi Kantor", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Lihat Audit Log", Icons.Default.Shield, TealSoft, Teal) { onNavigate("audit_log") }
+            Spacer(Modifier.height(100.dp))
         }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Hadir Hari Ini", "${s.presentToday}", "Kehadiran", Icons.Default.CheckCircle, GreenSoft, Green)
-            MetricCard(Modifier.weight(1f), "KPI Config", "Aktif", "Kelola KPI", Icons.Default.Star, PurpleSoft, Purple)
-        }
-        Spacer(Modifier.height(16.dp))
-        MyMenuSection(onNavigate)
-        Spacer(Modifier.height(16.dp))
-        Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Data Karyawan", Icons.Default.People, BlueSoft, Blue) { onNavigate("employees") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Konfigurasi KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_config") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("AI Review Kinerja", Icons.Default.Psychology, PurpleSoft, Purple) { onNavigate("ai_review") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Buat Kontrak", Icons.Default.Description, TealSoft, Teal) { onNavigate("contract_form") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Jadwal Kerja", Icons.Default.Schedule, GreenSoft, Green) { onNavigate("work_schedule_config") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Kebijakan Cuti", Icons.Default.Policy, RedSoft, Red) { onNavigate("leave_policy") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Lokasi Kantor", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Lihat Audit Log", Icons.Default.Shield, TealSoft, Teal) { onNavigate("audit_log") }
-        Spacer(Modifier.height(100.dp))
     }
 }
 
@@ -79,66 +90,122 @@ fun FinanceDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboa
     val s by vm.state.collectAsState()
 
     DashboardLayout(title = "Dashboard Finance", subtitle = "HRIS Portal · ${user.fullName.ifEmpty { user.name }}", user = user) {
-        Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Total Karyawan", "${s.totalEmployees}", "Data payroll", Icons.Default.People, OrangeSoft, Orange)
-            MetricCard(Modifier.weight(1f), "Slip Gaji", "Proses", "Generate slip", Icons.Default.Description, BlueSoft, Blue)
+        if (s.isLoading) {
+            com.ptniger.hris.ui.components.DashboardSkeleton()
+        } else {
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(Modifier.weight(1f), "Total Karyawan", "${s.totalEmployees}", "Data payroll", Icons.Default.People, OrangeSoft, Orange)
+                MetricCard(Modifier.weight(1f), "Slip Gaji", "Proses", "Generate slip", Icons.Default.Description, BlueSoft, Blue)
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(Modifier.weight(1f), "Potongan", "BPJS+PPh", "Kalkulasi", Icons.Default.Remove, RedSoft, Red)
+                MetricCard(Modifier.weight(1f), "KPI Bonus", "Aktif", "Terhitung otomatis", Icons.AutoMirrored.Filled.TrendingUp, GreenSoft, Green)
+            }
+            Spacer(Modifier.height(16.dp))
+            MyMenuSection(onNavigate)
+            Spacer(Modifier.height(16.dp))
+            Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Kelola Payroll", Icons.Default.Payments, OrangeSoft, Orange) { onNavigate("payroll") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Approval Payroll", Icons.Default.CheckCircle, GreenSoft, Green) { onNavigate("payroll_approval") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Download Laporan", Icons.Default.Description, BlueSoft, Blue) { onNavigate("report") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
+            Spacer(Modifier.height(100.dp))
         }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Potongan", "BPJS+PPh", "Kalkulasi", Icons.Default.Remove, RedSoft, Red)
-            MetricCard(Modifier.weight(1f), "KPI Bonus", "Aktif", "Terhitung otomatis", Icons.AutoMirrored.Filled.TrendingUp, GreenSoft, Green)
-        }
-        Spacer(Modifier.height(16.dp))
-        MyMenuSection(onNavigate)
-        Spacer(Modifier.height(16.dp))
-        Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Kelola Payroll", Icons.Default.Payments, OrangeSoft, Orange) { onNavigate("payroll") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Approval Payroll", Icons.Default.CheckCircle, GreenSoft, Green) { onNavigate("payroll_approval") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Download Laporan", Icons.Default.Description, BlueSoft, Blue) { onNavigate("report") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
-        Spacer(Modifier.height(100.dp))
     }
 }
 
 @Composable
 fun ManagerDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: DashboardViewModel = viewModel()) {
-    LaunchedEffect(Unit) { vm.loadManagerDashboard(user.userId, user.departmentId) }
+    LaunchedEffect(Unit) { vm.loadManagerDashboard(user) }
     val s by vm.state.collectAsState()
 
     DashboardLayout(title = "Dashboard Manager", subtitle = "HRIS Portal · ${user.fullName.ifEmpty { user.name }}", user = user) {
-        Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Anggota Tim", "${s.totalEmployees}", "Di departemen Anda", Icons.Default.People, TealSoft, Teal)
-            MetricCard(Modifier.weight(1f), "Cuti Pending", "${s.pendingApprovals}", "Perlu review", Icons.Default.CalendarMonth, OrangeSoft, Orange)
+        if (s.isLoading) {
+            com.ptniger.hris.ui.components.DashboardSkeleton()
+        } else {
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(
+                    modifier = Modifier.weight(1f),
+                    label = "Anggota Tim",
+                    value = "${s.totalEmployees}",
+                    note = "Bawahan langsung & tim",
+                    icon = Icons.Default.People,
+                    bgColor = TealSoft,
+                    fgColor = Teal,
+                    onClick = { onNavigate("team_presence") }
+                )
+                MetricCard(
+                    modifier = Modifier.weight(1f),
+                    label = "Cuti Pending",
+                    value = "${s.pendingApprovals}",
+                    note = if (s.pendingApprovals > 0) "Perlu review" else "Semua bersih",
+                    icon = Icons.Default.CalendarMonth,
+                    bgColor = OrangeSoft,
+                    fgColor = Orange,
+                    onClick = { onNavigate("leave_approval") }
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                // PRES-07: Metric card Hadir clickable → buka team_presence
+                Surface(
+                    Modifier.weight(1f).clickable { onNavigate("team_presence") },
+                    shape = RoundedCornerShape(20.dp),
+                    color = GreenSoft
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.People, null, tint = Green, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Tim Hari Ini", style = MaterialTheme.typography.labelSmall, color = Green)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text("${s.presentToday}/${s.totalEmployees}",
+                            style = MaterialTheme.typography.headlineMedium, color = Green)
+                        Text("Hadir  •  Tap untuk detail",
+                            style = MaterialTheme.typography.labelSmall, color = Green.copy(alpha = 0.7f))
+                    }
+                }
+                MetricCard(
+                    modifier = Modifier.weight(1f),
+                    label = "Approval Payroll",
+                    value = "${s.pendingPayrolls}",
+                    note = if (s.pendingPayrolls > 0) "Perlu review manajer" else "Tidak ada pending",
+                    icon = Icons.Default.Payments,
+                    bgColor = BlueSoft,
+                    fgColor = Blue,
+                    onClick = { onNavigate("payroll_approval") }
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            MyMenuSection(onNavigate)
+            Spacer(Modifier.height(16.dp))
+            Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Kehadiran Tim Hari Ini", Icons.Default.HowToReg, GreenSoft, Green) { onNavigate("team_presence") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Approval Cuti Bawahan", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Approval Payroll", Icons.Default.Payments, BlueSoft, Blue) { onNavigate("payroll_approval") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Penilaian KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_scoring") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("AI Review Kinerja", Icons.Default.Psychology, PurpleSoft, Purple) { onNavigate("ai_review") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Peer Review", Icons.Default.RateReview, TealSoft, Teal) { onNavigate("peer_review") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Monitor Absensi Tim", Icons.Default.AccessTime, TealSoft, Teal) { onNavigate("attendance_monitor") }
+            Spacer(Modifier.height(8.dp))
+            QuickActionButton("Daftar Tim Saya", Icons.Default.People, GreenSoft, Green) { onNavigate("employees") }
+            Spacer(Modifier.height(100.dp))
         }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(Modifier.weight(1f), "Hadir Hari Ini", "${s.presentToday}", "Absensi tim", Icons.Default.CheckCircle, GreenSoft, Green)
-            MetricCard(Modifier.weight(1f), "Approval Payroll", "Pending", "Perlu review", Icons.Default.Payments, BlueSoft, Blue)
-        }
-        MyMenuSection(onNavigate)
-        Spacer(Modifier.height(16.dp))
-        Text("Aksi Cepat", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Approval Cuti Bawahan", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Approval Payroll", Icons.Default.Payments, BlueSoft, Blue) { onNavigate("payroll_approval") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Penilaian KPI", Icons.Default.Star, PurpleSoft, Purple) { onNavigate("kpi_scoring") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("AI Review Kinerja", Icons.Default.Psychology, PurpleSoft, Purple) { onNavigate("ai_review") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Peer Review", Icons.Default.RateReview, TealSoft, Teal) { onNavigate("peer_review") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Monitor Absensi Tim", Icons.Default.AccessTime, TealSoft, Teal) { onNavigate("attendance_monitor") }
-        Spacer(Modifier.height(8.dp))
-        QuickActionButton("Daftar Tim Saya", Icons.Default.People, GreenSoft, Green) { onNavigate("employees") }
-        Spacer(Modifier.height(100.dp))
     }
 }
 
@@ -176,193 +243,30 @@ fun AdminDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashboard
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Lokasi Kantor (GPS Absensi)", Icons.Default.LocationCity, OrangeSoft, Orange) { onNavigate("office_locations") }
         Spacer(Modifier.height(8.dp))
+        QuickActionButton("App Config (Cuaca & AI)", Icons.Default.SettingsApplications, TealSoft, Teal) { onNavigate("app_config") }
+        Spacer(Modifier.height(8.dp))
         QuickActionButton("Lihat Audit Log", Icons.Default.Shield, PurpleSoft, Purple) { onNavigate("audit_log") }
         Spacer(Modifier.height(8.dp))
         QuickActionButton("Approval Cuti", Icons.Default.CalendarMonth, OrangeSoft, Orange) { onNavigate("leave_approval") }
         Spacer(Modifier.height(8.dp))
 
-        // Demo Data Section
-        var seedMessage by remember { mutableStateOf<String?>(null) }
-        var isSeedLoading by remember { mutableStateOf(false) }
-        val seedScope = rememberCoroutineScope()
+        // ── DEV TOOLS ──
         HorizontalDivider(color = CardBorder)
         Spacer(Modifier.height(8.dp))
-        Text("Developer Tools", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-        Spacer(Modifier.height(4.dp))
-
-        // Button 1: SeedDataManager (lengkap untuk AI Review)
-        var isSeedAiLoading by remember { mutableStateOf(false) }
-        var seedAiResult by remember { mutableStateOf<String?>(null) }
         OutlinedButton(
-            onClick = {
-                if (!isSeedAiLoading) {
-                    isSeedAiLoading = true
-                    seedAiResult = null
-                    seedScope.launch {
-                        val result = SeedDataManager.seedAll()
-                        seedAiResult = if (result.errors.isEmpty()) {
-                            "✅ Berhasil insert ${result.inserted} dokumen (attendance Q2, KPI scores, peer reviews)"
-                        } else {
-                            "⚠️ ${result.inserted} berhasil, ${result.errors.size} error: ${result.errors.joinToString()}"
-                        }
-                        isSeedAiLoading = false
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
+            onClick = { onNavigate("dev_tools") },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = RoundedCornerShape(16.dp),
-            enabled = !isSeedAiLoading,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Purple)
+            border = BorderStroke(1.dp, Orange.copy(alpha = 0.5f))
         ) {
-            if (isSeedAiLoading) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Purple)
-                Spacer(Modifier.width(8.dp))
-                Text("Seeding data AI Review...", color = Purple)
-            } else {
-                Icon(Icons.Default.Psychology, null, tint = Purple, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Seed Data Lengkap (AI Review + KPI)", color = Purple)
-            }
-        }
-        seedAiResult?.let {
-            Spacer(Modifier.height(4.dp))
-            Text(it, style = MaterialTheme.typography.bodySmall,
-                color = if (it.startsWith("✅")) Green else Orange)
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Button 2: DummyDataSeeder (demo presentasi ringan)
-        OutlinedButton(
-            onClick = {
-                if (!isSeedLoading) {
-                    isSeedLoading = true
-                    seedMessage = null
-                    seedScope.launch {
-                        seedMessage = com.ptniger.hris.utils.DummyDataSeeder.seedAll()
-                        isSeedLoading = false
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(if (isSeedLoading) "Memuat data demo..." else "Muat Data Demo Ringan (Presentasi)")
-        }
-        if (seedMessage != null) {
-            Spacer(Modifier.height(4.dp))
-            Text(seedMessage!!, style = MaterialTheme.typography.bodySmall, color = if (seedMessage!!.contains("Gagal")) Red else Green)
-        }
-        
-        Spacer(Modifier.height(16.dp))
-        
-        // Hapus Collection (Dev Mode)
-        var collectionToDelete by remember { mutableStateOf("") }
-        var deleteMessage by remember { mutableStateOf<String?>(null) }
-        var isDeleteDropdownExpanded by remember { mutableStateOf(false) }
-        val coroutineScope = rememberCoroutineScope()
-
-        val collectionOptions = listOf(
-            "users" to "Users (Akun Login)",
-            "attendance" to "Attendance (Absensi)",
-            "employees" to "Employees (Karyawan)",
-            "payrolls" to "Payrolls (Slip Gaji)",
-            "kpi_configs" to "KPI Configs",
-            "kpi_scores" to "KPI Scores",
-            "peer_reviews" to "Peer Reviews",
-            "ai_reviews" to "AI Reviews",
-            "leave_requests" to "Leave Requests (Cuti)",
-            "employee_contracts" to "Employee Contracts",
-            "office_locations" to "Office Locations",
-            "work_schedules" to "Work Schedules",
-            "leave_policies" to "Leave Policies",
-            "notifications" to "Notifications",
-            "audit_logs" to "Audit Logs",
-            "automation_rules" to "Automation Rules",
-            "app_configs" to "App Configs"
-        )
-        
-        Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Surface, shadowElevation = 1.dp) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Hapus Collection (Dev Mode)", style = MaterialTheme.typography.titleSmall, color = Red)
-                Spacer(Modifier.height(8.dp))
-                
-                // Dropdown picker
-                ExposedDropdownMenuBox(
-                    expanded = isDeleteDropdownExpanded,
-                    onExpandedChange = { isDeleteDropdownExpanded = !isDeleteDropdownExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = collectionOptions.find { it.first == collectionToDelete }?.second ?: "Pilih modul...",
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        shape = RoundedCornerShape(12.dp),
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDeleteDropdownExpanded) },
-                        label = { Text("Pilih Collection") }
-                    )
-                    ExposedDropdownMenu(
-                        expanded = isDeleteDropdownExpanded,
-                        onDismissRequest = { isDeleteDropdownExpanded = false }
-                    ) {
-                        collectionOptions.forEach { (key, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    collectionToDelete = key
-                                    isDeleteDropdownExpanded = false
-                                    deleteMessage = null
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                Spacer(Modifier.height(8.dp))
-                if (deleteMessage != null) {
-                    Text(deleteMessage!!, color = if (deleteMessage!!.contains("berhasil", ignoreCase = true)) Green else Red, style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(8.dp))
-                }
-                Button(
-                    onClick = {
-                        val colName = collectionToDelete.trim()
-                        if (colName.isNotEmpty()) {
-                            coroutineScope.launch(Dispatchers.IO) {
-                                val db = FirebaseFirestore.getInstance()
-                                val colRef = db.collection(colName)
-                                try {
-                                    val snapshot = colRef.get().await()
-                                    if (snapshot.isEmpty) {
-                                        deleteMessage = "Tidak menemukan \"$colName\" atau sudah kosong."
-                                    } else {
-                                        val preservedEmails = listOf(
-                                            "akungweh54@gmail.com",
-                                            "nandazhafran@gmail.com",
-                                            "driveperson69420@gmail.com",
-                                            "akunsayananda0@gmail.com"
-                                        )
-                                        for (doc in snapshot.documents) {
-                                            if ((colName == "users" || colName == "employees") && preservedEmails.contains(doc.getString("email"))) {
-                                                continue
-                                            }
-                                            doc.reference.delete().await()
-                                        }
-                                        deleteMessage = "Data collection \"$colName\" berhasil dihapus (kecuali akun inti)."
-                                    }
-                                } catch (e: Exception) {
-                                    deleteMessage = "Gagal menghapus: ${e.message}"
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Red)
-                ) {
-                    Text("Hapus Seluruh Data")
-                }
+            Icon(Icons.Default.Settings, null, tint = Orange, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Dev Tools", color = Orange)
+            Spacer(Modifier.width(4.dp))
+            Surface(shape = RoundedCornerShape(4.dp), color = OrangeSoft) {
+                Text("DEV", Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelSmall, color = Orange,
+                    fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(100.dp))
@@ -381,6 +285,13 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
             val contracts = ContractRepository().getUnsignedContracts(user.userId)
             hasPendingContract = contracts.isNotEmpty()
         }
+    }
+
+    // PRES-08: Fetch presence status diri sendiri
+    var myPresence by remember { mutableStateOf<EmployeePresence?>(null) }
+    LaunchedEffect(Unit) {
+        val emp = EmployeeRepository().getByUserId(user.userId)
+        emp?.let { myPresence = PresenceResolver.resolveToday(it) }
     }
 
     DashboardLayout(title = "Halo, ${user.fullName.ifEmpty { user.name }}", subtitle = "HRIS Portal · Employee Self Service", user = user) {
@@ -403,6 +314,38 @@ fun EmployeeDashboardScreen(user: User, onNavigate: (String) -> Unit, vm: Dashbo
                 }
             }
             Spacer(Modifier.height(8.dp))
+        }
+
+        // PRES-08: Status Saya Hari Ini card
+        myPresence?.let { pres ->
+            Surface(
+                shape = RoundedCornerShape(20.dp), color = Surface, shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Status Saya Hari Ini", style = MaterialTheme.typography.titleSmall)
+                        Text(DateUtils.todayShort(),
+                            style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    }
+
+                    PresenceBadge(status = pres.presenceStatus, size = PresenceBadgeSize.FULL,
+                        modifier = Modifier.fillMaxWidth())
+
+                    if (pres.checkInTime.isNotEmpty()) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            InfoChip("Masuk", pres.checkInTime)
+                            if (pres.checkOutTime.isNotEmpty()) InfoChip("Keluar", pres.checkOutTime)
+                            else Text("Belum checkout", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                        }
+                    }
+
+                    // Jadwal mingguan ringkas
+                    WeeklyScheduleRow(schedule = null) // akan di-populate saat schedule di-fetch
+                }
+            }
+            Spacer(Modifier.height(12.dp))
         }
 
         Spacer(Modifier.height(4.dp))
@@ -470,25 +413,111 @@ fun MyMenuSection(onNavigate: (String) -> Unit) {
 // ============== Shared Composables ==============
 
 @Composable
-fun DashboardLayout(title: String, subtitle: String, user: User, content: @Composable ColumnScope.() -> Unit) {
+fun DashboardLayout(
+    title: String,
+    subtitle: String,
+    user: User,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    // Fetch cuaca inline — tidak blocking UI
+    var weatherLine by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(user.userId) {
+        try {
+            val employee = com.ptniger.hris.data.repository.EmployeeRepository().getByUserId(user.userId)
+            val officeId = employee?.officeId ?: "office_main"
+            val office = com.ptniger.hris.data.repository.OfficeLocationRepository().getById(officeId)
+            
+            // Default to Jakarta if office not found so weather still shows
+            val lat = office?.latitude ?: -6.2088
+            val lon = office?.longitude ?: 106.8456
+
+            val w = com.ptniger.hris.data.repository.WeatherRepository().fetchCurrentWeather(
+                lat = lat,
+                lon = lon
+            )
+            if (w != null) {
+                weatherLine = "${w.getWeatherLabel()} ${w.tempCelsius.toInt()}°C"
+            }
+        } catch (_: Exception) {}
+    }
+
+    val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+    val greetWord = when {
+        hour < 11 -> "Selamat pagi"
+        hour < 15 -> "Selamat siang"
+        hour < 18 -> "Selamat sore"
+        else      -> "Selamat malam"
+    }
+    val firstName = remember(user) {
+        (user.fullName.ifEmpty { user.name }).split(" ").firstOrNull() ?: user.name
+    }
+
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
-        // Top bar — avatar is now in MainScaffold overlay, so just show title here
-        Row(
-            Modifier.fillMaxWidth().padding(start = 18.dp, end = 64.dp, top = 12.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+
+        // ── HEADER — putih dengan border bawah supaya beda dari Background ──
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Surface,
+            shadowElevation = 2.dp,
+            tonalElevation = 0.dp
         ) {
-            Column {
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 12.dp)
+            ) {
+                // Baris 1: Greeting + cuaca inline — kecil, abu-abu
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "$greetWord, $firstName",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = androidx.compose.ui.unit.TextUnit(11f, androidx.compose.ui.unit.TextUnitType.Sp)
+                        ),
+                        color = TextSecondary
+                    )
+                    weatherLine?.let { weather ->
+                        Text(
+                            text = "\u00B7",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = androidx.compose.ui.unit.TextUnit(11f, androidx.compose.ui.unit.TextUnitType.Sp)
+                            ),
+                            color = TextMuted
+                        )
+                        Text(
+                            text = weather,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = androidx.compose.ui.unit.TextUnit(11f, androidx.compose.ui.unit.TextUnitType.Sp)
+                            ),
+                            color = TextMuted
+                        )
+                    }
+                }
                 Spacer(Modifier.height(2.dp))
-                Text(title, style = MaterialTheme.typography.headlineMedium)
+                // Baris 2: Judul halaman — paling menonjol
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineMedium
+                )
             }
         }
+        // ── END HEADER ────────────────────────────────────────────────────────
+
+        val isHighTraffic by com.ptniger.hris.utils.TrafficLatencyGuard.isHighTraffic.collectAsState()
+        val trafficMsg by com.ptniger.hris.utils.TrafficLatencyGuard.trafficMessage.collectAsState()
+        com.ptniger.hris.utils.HighTrafficBanner(visible = isHighTraffic, message = trafficMsg)
 
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp),
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 18.dp),
             content = content
         )
-        
+
         // Auto-Update Checker Logic
         val context = LocalContext.current
         var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
@@ -561,8 +590,18 @@ fun HeroCard(title: String, desc: String, badge: String) {
 }
 
 @Composable
-fun MetricCard(modifier: Modifier = Modifier, label: String, value: String, note: String, icon: ImageVector, bgColor: Color, fgColor: Color) {
-    Surface(modifier = modifier, shape = RoundedCornerShape(22.dp), color = Surface, shadowElevation = 1.dp) {
+fun MetricCard(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    note: String,
+    icon: ImageVector,
+    bgColor: Color,
+    fgColor: Color,
+    onClick: (() -> Unit)? = null
+) {
+    val cardModifier = if (onClick != null) modifier.clickable { onClick() } else modifier
+    Surface(modifier = cardModifier, shape = RoundedCornerShape(22.dp), color = Surface, shadowElevation = 1.dp) {
         Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                 Column {

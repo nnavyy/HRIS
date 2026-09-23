@@ -244,13 +244,15 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
                         validationError = null
                         val dur = if (startDate.isNotEmpty() && endDate.isNotEmpty()) calcDuration(startDate, endDate) else 0
 
+                        val isEmergency = emergencyTypes.contains(type)
+
                         when {
                             startDate.isBlank() -> { validationError = "Pilih tanggal mulai"; return@Button }
                             endDate.isBlank() -> { validationError = "Pilih tanggal selesai"; return@Button }
                             reason.isBlank() -> { validationError = "Alasan wajib diisi"; return@Button }
                             endDate < startDate -> { validationError = "Tanggal selesai harus setelah tanggal mulai"; return@Button }
-                            dur > leaveQuota -> { validationError = "Melebihi sisa kuota ($leaveQuota hari). Durasi pengajuan: $dur hari."; return@Button }
-                            leaveQuota <= 0 -> { validationError = "Kuota cuti sudah habis!"; return@Button }
+                            !isEmergency && dur > leaveQuota -> { validationError = "Melebihi sisa kuota ($leaveQuota hari). Durasi pengajuan: $dur hari."; return@Button }
+                            !isEmergency && leaveQuota <= 0 -> { validationError = "Kuota cuti tahunan sudah habis!"; return@Button }
                         }
 
                         val empId = user.employeeId.ifEmpty { user.userId }
@@ -271,8 +273,10 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
                             currentQuota = leaveQuota
                         )
 
-                        // Optimistic UI update
-                        leaveQuota = (leaveQuota - dur).coerceAtLeast(0)
+                        // Optimistic UI update hanya jika memotong kuota tahunan
+                        if (!isEmergency) {
+                            leaveQuota = (leaveQuota - dur).coerceAtLeast(0)
+                        }
                         startDate = ""; endDate = ""; reason = ""
                     },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -341,13 +345,13 @@ fun LeaveRequestScreen(user: User, vm: LeaveViewModel = viewModel()) {
 fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel = viewModel()) {
     val pending by vm.pending.collectAsState()
     val message by vm.message.collectAsState()
-    LaunchedEffect(Unit) {
-        val role = user.primaryRole.ifEmpty { user.role }
-        val employeeRepo = com.ptniger.hris.data.repository.EmployeeRepository()
-        val employee = employeeRepo.getByUserId(user.userId)
-        val empId = employee?.employeeId ?: user.employeeId
+    
+    var rejectingLeaveId by remember { mutableStateOf<String?>(null) }
+    var rejectionReasonInput by remember { mutableStateOf("") }
+    var rejectionError by remember { mutableStateOf<String?>(null) }
 
-        vm.loadPendingForApprover(empId, role)
+    LaunchedEffect(Unit) {
+        vm.loadPendingForApprover(user)
     }
 
     Column(
@@ -416,7 +420,8 @@ fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(Modifier.weight(1f)) {
                             Text(leave.employeeName, style = MaterialTheme.typography.titleSmall)
-                            Text("${leave.type} · ${leave.duration} hari", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            val deptInfo = if (leave.departmentId.isNotEmpty()) " • ${leave.departmentId}" else ""
+                            Text("${leave.type} · ${leave.duration} hari$deptInfo", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                             val displayDate = if (leave.startDate.isNotEmpty() && leave.endDate.isNotEmpty()) {
                                 "${com.ptniger.hris.utils.DateUtils.formatDate(leave.startDate)} → ${com.ptniger.hris.utils.DateUtils.formatDate(leave.endDate)}"
                             } else {
@@ -431,13 +436,17 @@ fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel 
                     if (!isSuperAdmin) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
-                                onClick = { vm.approve(leave.leaveId, user.userId) },
+                                onClick = { vm.approve(leave.leaveId, user) },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Green),
                                 modifier = Modifier.weight(1f)
                             ) { Text("Setuju") }
                             OutlinedButton(
-                                onClick = { vm.reject(leave.leaveId, user.userId) },
+                                onClick = { 
+                                    rejectingLeaveId = leave.leaveId
+                                    rejectionReasonInput = ""
+                                    rejectionError = null
+                                },
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f)
                             ) { Text("Tolak", color = Red) }
@@ -461,6 +470,50 @@ fun LeaveApprovalScreen(user: User, onBack: () -> Unit = {}, vm: LeaveViewModel 
             }
         }
         Spacer(Modifier.height(100.dp))
+    }
+
+    if (rejectingLeaveId != null) {
+        AlertDialog(
+            onDismissRequest = { rejectingLeaveId = null; rejectionError = null },
+            title = { Text("Tolak Pengajuan Cuti") },
+            text = {
+                Column {
+                    Text("Masukkan alasan penolakan untuk karyawan:", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = rejectionReasonInput,
+                        onValueChange = { rejectionReasonInput = it; rejectionError = null },
+                        label = { Text("Alasan Penolakan (Wajib)") },
+                        placeholder = { Text("Contoh: Jadwal proyek rilis, silakan ajukan tanggal lain.") },
+                        isError = rejectionError != null,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    if (rejectionError != null) {
+                        Text(rejectionError!!, color = Red, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (rejectionReasonInput.isBlank()) {
+                            rejectionError = "Alasan penolakan wajib diisi"
+                            return@Button
+                        }
+                        val idToReject = rejectingLeaveId!!
+                        rejectingLeaveId = null
+                        vm.reject(idToReject, user, rejectionReasonInput.trim())
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Red)
+                ) {
+                    Text("Tolak Cuti")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { rejectingLeaveId = null; rejectionError = null }) { Text("Batal") }
+            }
+        )
     }
 }
 
